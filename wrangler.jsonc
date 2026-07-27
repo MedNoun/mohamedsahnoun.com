@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "mohamedsahnoun-dev",
+  "compatibility_date": "2026-07-27",
+  // Static assets only: no Worker script, the built site is served directly.
+  "assets": {
+    "directory": "./dist",
+    "not_found_handling": "404-page"
+  }
+}

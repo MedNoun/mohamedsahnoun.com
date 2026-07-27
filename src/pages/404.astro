@@ -1,0 +1,59 @@
+---
+import Base from '../layouts/Base.astro';
+import { site } from '../data/site';
+---
+
+<Base title="Not found" description="That page does not exist on mohamedsahnoun.dev.">
+  <main class="wrap not-found" id="content">
+    <p class="echo"><span aria-hidden="true">&gt;</span> SELECT * FROM pages WHERE path = '404';</p>
+    <h1>0 rows returned</h1>
+    <p class="lead">
+      That page does not exist. The console on the front page will find anything that does.
+    </p>
+    <p class="links">
+      <a href="/">Query console</a>
+      <a href="/plain/">Plain text version</a>
+      <a href={`mailto:${site.email}`}>{site.email}</a>
+    </p>
+  </main>
+</Base>
+
+<style>
+  .not-found {
+    padding: calc(var(--space) * 24) 0;
+  }
+
+  .echo {
+    color: var(--muted);
+    font-size: var(--t--1);
+    margin: 0;
+  }
+
+  .echo span {
+    color: var(--accent);
+    margin-right: 1ch;
+  }
+
+  h1 {
+    font-size: var(--t-3);
+    font-weight: 600;
+    margin: calc(var(--space) * 4) 0 0 0;
+  }
+
+  .lead {
+    font-family: var(--prose);
+    font-size: var(--t-1);
+    color: var(--muted);
+    max-width: var(--measure);
+    margin: calc(var(--space) * 4) 0 0 0;
+  }
+
+  .links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--space) * 2) calc(var(--space) * 6);
+    margin: calc(var(--space) * 8) 0 0 0;
+    font-size: var(--t--1);
+    overflow-wrap: anywhere;
+  }
+</style>
