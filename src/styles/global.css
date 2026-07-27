@@ -1,0 +1,202 @@
+:root {
+  --bg: #0b0e14;
+  --surface: #131722;
+  --border: #232936;
+  --text: #e6e9ef;
+  --muted: #9ba6b8;
+  --accent: #7fd1b9;
+  --link: #7aa2f7;
+
+  --mono: ui-monospace, SFMono-Regular, 'JetBrains Mono', Menlo, Consolas, monospace;
+  --prose: 'Iowan Old Style', Charter, Georgia, 'Times New Roman', serif;
+
+  --t--2: 0.8125rem;
+  --t--1: 0.875rem;
+  --t-0: 1rem;
+  --t-1: 1.125rem;
+  --t-2: 1.375rem;
+  --t-3: 1.75rem;
+  --t-4: 2.25rem;
+
+  --space: 0.25rem;
+  --radius: 0.25rem;
+  --measure: 68ch;
+
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 100%;
+  line-height: 1.6;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+}
+
+a {
+  color: var(--link);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--accent);
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--mono);
+  font-size: 0.9em;
+}
+
+code {
+  color: var(--accent);
+  overflow-wrap: break-word;
+}
+
+pre {
+  overflow-x: auto;
+  padding: calc(var(--space) * 4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: calc(var(--space) * 10) 0;
+}
+
+img,
+svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: calc(var(--space) * 2);
+  top: calc(var(--space) * -20);
+  z-index: 10;
+  padding: calc(var(--space) * 2) calc(var(--space) * 4);
+  background: var(--surface);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius);
+  color: var(--text);
+  text-decoration: none;
+  transition: top 120ms ease;
+}
+
+.skip-link:focus {
+  top: calc(var(--space) * 2);
+}
+
+.wrap {
+  max-width: 76ch;
+  margin: 0 auto;
+  padding: 0 calc(var(--space) * 5);
+}
+
+/* Long-form case study prose */
+
+.prose {
+  font-family: var(--prose);
+  font-size: var(--t-1);
+  line-height: 1.65;
+  max-width: var(--measure);
+}
+
+.prose > * {
+  margin: 0;
+}
+
+.prose > * + * {
+  margin-top: calc(var(--space) * 5);
+}
+
+.prose > h4 {
+  font-family: var(--mono);
+  font-size: var(--t--1);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-top: calc(var(--space) * 10);
+}
+
+.prose code {
+  font-size: 0.85em;
+}
+
+.prose ul,
+.prose ol {
+  margin: 0;
+  padding-left: calc(var(--space) * 6);
+}
+
+.prose strong {
+  color: #fff;
+}
+
+/*
+ * The console manages what is on screen, but only once it has hydrated and set
+ * data-console on the body. Without JavaScript every entry stays visible.
+ */
+body[data-console='ready'] .entry-group,
+body[data-console='ready'] .entry {
+  display: none;
+}
+
+body[data-console='ready'] .entry-group.is-revealed,
+body[data-console='ready'] .entry.is-revealed {
+  display: block;
+}
+
+body[data-console='ready'][data-view='reader'] .entry-group,
+body[data-console='ready'][data-view='reader'] .entry {
+  display: block;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

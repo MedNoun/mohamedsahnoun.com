@@ -1,0 +1,57 @@
+---
+id: ovhai-llm
+name: Training-data platform
+role: Data Engineer Intern
+org: OVHai LLM, Paris
+period: Feb 2024 to Jul 2024
+hook: Automated the corpus preparation behind neural machine translation models serving regulated finance.
+domain: Distributed systems
+year: '2024'
+stack:
+  - Python
+  - ActiveMQ
+  - MinIO
+  - EdgeDB
+  - Docker
+  - GitLab CI
+  - Poetry
+  - Sockeye
+link: https://llm.ovhai.com
+order: 2
+---
+
+#### The problem
+
+OVHai LLM trains Transformer-based neural machine translation models for banks, investment funds and other regulated financial institutions. Those models are only as good as the corpora behind them, and the data team was preparing every corpus by hand for each new language pair: slow, inconsistent, and under a garbage-in-garbage-out constraint, a direct risk to model quality. My five-month end-of-studies internship in Paris was to re-architect the internal platform that does that preparation, Datomatique, and automate the stages that were still manual.
+
+#### The constraint that made it hard
+
+The clients are the constraint. Banking data cannot leave the premises, which rules out managed cloud services and makes every infrastructure choice a self-hosting choice. And the workflow itself is an ordered pipeline carrying substantial payloads (documents, corpora, model outputs) rather than a stream of small notifications, which quietly rules out a lot of the standard event-driven advice.
+
+#### What I tried
+
+I ran a formal architecture trade-off analysis rather than picking by instinct: monolith against microservices, then event-driven against message-driven. Microservices won on independent deployability, since the stages have genuinely different resource profiles, one of them needing GPUs. Message-driven won over event-driven on the specifics of the workflow: point-to-point semantics, guaranteed delivery and sequential workflow control fit an ordered pipeline, where publish and subscribe fits fire-and-forget notification, which this is not.
+
+I benchmarked and justified each component the same way. ActiveMQ over RabbitMQ for its JMS foundation, multi-protocol support (AMQP, MQTT, STOMP), master and slave high availability and dual file- and database-backed persistence. Self-hosted MinIO over AWS S3 for cost, control and the on-premises data sovereignty the clients require. EdgeDB over PostgreSQL for graph-relational modelling and the expressiveness of EdgeQL. Poetry for dependency management and reproducible packaging.
+
+#### The decision, and why
+
+Before building anything new I refactored the core library into clean modules (Pipeline, Tasks, Messaging, Callbacks, Utils, Config) and fixed its three structural weaknesses, because new services built on a shaky library would have inherited all three.
+
+Callbacks were hard-coded, so extending behaviour meant editing library source. I replaced them with a pluggable abstract callback system designed against the Dependency Inversion and Open/Closed principles, so users extend without touching the library. Logging was fixed, so I made it configurable across six severity levels with per-level sinks. And error handling was all-or-nothing: one malformed record stopped the world and the whole pipeline restarted. I introduced granular batch-level error isolation, capturing the failing record with its traceback and routing it aside so the rest of the batch continues. On a corpus of millions of sentences that is the difference between a pipeline that finishes and one that never does.
+
+On that foundation I built four containerised microservices from a standardised boilerplate template repository: document extraction (sentence- or paragraph-level parsing of PDFs from object storage with automatic language detection), translation serving the lab's in-house engines through Sockeye, COMET-based translation quality estimation, and monolingual and bilingual regex filtering driven by rules stored in EdgeDB.
+
+Services communicate through a self-describing JSON envelope carrying the ordered task list, a current-task index each service increments, per-service configuration, the target queue, and dedicated exception and traceback fields. A message therefore knows its own remaining itinerary, which means no service needs to know what comes after it and the pipeline can be reordered by changing the message rather than the code.
+
+#### The outcome
+
+The platform ships through self-hosted GitLab CI/CD, chosen for client confidentiality, with pre-commit hooks, automated documentation builds, Python wheel packaging, Docker image builds and registry pushes. I also shipped a MinIO CLI inside the library so the data team could manage buckets and artefacts without learning the underlying SDK, which was the smallest piece of work with the most immediate uptake.
+
+The internship also produced an open-source spin-off: `edgedb-dto`, published to PyPI and now past 1,000 downloads. I delivered throughout under Kanban with an explicit definition of done gated on merge-request review, and defended the thesis at INSAT on 25 September 2024.
+
+#### What I would do differently
+
+The self-describing envelope is elegant and it is also unversioned. Every service parses the same JSON shape, so changing that shape means coordinating a deployment across all four at once, which is exactly the coupling microservices were supposed to remove. A schema version field and tolerant readers would have cost an afternoon.
+
+I would also have pushed harder for integration tests across the message path. Each service was tested in isolation, and the failures that actually bite in a message-driven system are the ones between services: a queue that fills, a consumer that acknowledges before it finishes, a payload that is valid to the sender and unreadable to the receiver.

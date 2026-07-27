@@ -1,0 +1,60 @@
+---
+id: fashion-data-platform
+name: Customer data platform
+role: Data Platform Engineer
+org: A US fashion house (via a consultancy)
+period: Jan 2025 to present
+hook: Nine fragmented source systems resolved into one trustworthy customer view on GCP.
+domain: Data platform
+year: '2025'
+stack:
+  - BigQuery
+  - Dataform
+  - GoogleSQL
+  - JavaScript
+  - Terraform
+  - Pub/Sub
+  - Dataflow
+  - Cloud Workflows
+  - Datadog
+  - Azure DevOps
+order: 1
+---
+
+#### The problem
+
+A US fashion house, where I work through a consultancy, sells through e-commerce, physical retail and a set of marketing and planning tools that grew up separately. Nine heterogeneous source systems spanning commerce, ERP, marketing automation and planning each held part of the truth about the same customer, and none of them agreed. The same person existed several times over, spelled differently, with different addresses, in systems that had no shared key. Every question worth asking about a customer required a human to reconcile that by hand first.
+
+I own two production repositories on Google Cloud that together answer it. I designed and built the BigQuery and Dataform ELT codebase from scratch, authoring roughly 83% of its 841 commits, and I maintain and extend the Terraform codebase that provisions the platform underneath it.
+
+#### The constraint that made it hard
+
+Identity resolution across those systems is a graph problem. If record A shares a phone number with record B, and B shares an email with C, then A, B and C are one person, even though A and C have nothing in common. The natural expression of that is connected components over a graph, and the platform is BigQuery, which is set-based SQL with no graph traversal and no procedural loop I would want in a nightly pipeline.
+
+The second constraint was determinism. The output feeds reverse ETL into systems that write back to customers, so the same input has to produce the same golden IDs on every run. A result that reshuffles between runs is worse than no result.
+
+#### What I tried
+
+The resolution engine implements Union-Find connected components entirely in SQL, using iterative CTEs. Candidate pairs are blocked on name plus phone and name plus email edges, which keeps the comparison space tractable, and the iteration collapses each component to a stable representative. That resolves over 7 million fragmented customer records into golden master IDs, and it does it declaratively, inside the warehouse, with no external orchestration.
+
+Around it sits a layered medallion lakehouse: 83 SQLX models and roughly 6,600 lines of GoogleSQL. Raw data lands in incremental datalake tables keyed on a `farm_fingerprint` hash and partitioned hourly on ingestion timestamp, then flows through a cleaned staging layer, a work layer, conformed aggregates, and finally a Kimball-style star schema of dimensions, facts and business-facing views.
+
+To keep that from becoming 6,600 lines of copy-paste, I wrote a 540-line JavaScript macro library that generates SQL at compile time: a declarative `clean_string` cleansing DSL (Unicode NFD normalisation, regex accept and reject rules, multi-format timezone-aware timestamp parsing, safe casting, null handling), an RFC 5322 email validator, a fuzzy address standardiser reconciling country, state, city and postcode against reference data, and a fingerprint-based slowly-changing-dimension merge generator.
+
+#### The decision, and why
+
+Idempotency had to be a first-class requirement rather than a property we hoped for. I traced a recurring delta drift to non-deterministic window functions: a `ROW_NUMBER` over rows with tied ordering keys picks an arbitrary winner, and arbitrary is not stable across runs. The fix was to enforce an explicit tiebreaker in every `QUALIFY` and `ROW_NUMBER` deduplication in the codebase, which removed the drift at the source instead of reconciling it downstream.
+
+Contracts are enforced rather than assumed: 22 models carry declarative Dataform assertion suites for uniqueness and non-null, and over 100 DAG tags allow selective, tag-scoped execution so a change to one domain does not require a full rebuild. A CDC-style work, incremental and delta pattern feeds reverse ETL, where scripted BigQuery procedures chunk and export segmented customer and sales extracts to cloud storage for marketing activation and write-back across four regional segments.
+
+The Terraform side is the same platform seen from below: roughly 125 files and 5,000 lines provisioning eleven BigQuery dataset modules, 25 JSON table schemas, nine batch ingestion flows, Pub/Sub topics, service accounts and 21 least-privilege IAM bindings, composed from the group's versioned internal module registry with a pinned provider and remote state. Changes ship through dev, pre-production and production via approval-gated Azure DevOps pipelines with per-environment state backends. My work there has centred on schema evolution for new source fields, onboarding new external sources and export buckets, IAM remediation across environments, and clearing Terraform state drift with `moved` blocks and `lifecycle` rules.
+
+#### The outcome
+
+The platform runs in production. Silos across e-commerce, retail point of sale and marketing collapse into stable golden IDs, and the star schema on top is what the business actually queries. Observability is a Cloud Logging sink through Pub/Sub and Dataflow streaming errors to Datadog with a dead-letter topic, and delivery runs on Cloud Build triggers driving Cloud Workflows that compile and release Dataform versions through its API with retry and exponential backoff.
+
+#### What I would do differently
+
+The blocking strategy is the honest limitation. Name plus phone and name plus email are cheap and precise, and they miss the customer who changed both, which means recall is bounded by how much contact information happens to overlap. Adding a fuzzy blocking pass on standardised address, which the macro library already produces, would widen it without a full pairwise comparison.
+
+I would also invest earlier in testing the macro library itself. The assertions cover the models it generates, which catches a bad result, but not the generator, which is where a subtle change silently rewrites 83 models at once.

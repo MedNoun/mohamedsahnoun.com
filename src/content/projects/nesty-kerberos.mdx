@@ -1,0 +1,56 @@
+---
+id: nesty-kerberos
+name: Nesty-kerberos
+hook: The Kerberos three-legged ticket flow implemented properly, nested encryption included.
+domain: Security
+year: '2023'
+stack:
+  - NestJS
+  - TypeScript
+  - Redis
+  - PostgreSQL
+  - TypeORM
+  - Docker Compose
+repo: https://github.com/MedNoun/Nesty-kerberos
+order: 3
+---
+
+#### The problem
+
+Almost every write-up of Kerberos stops at the diagram: client, Key Distribution Centre, service, three legs, some arrows. The diagram is not the difficult part. The difficult part is that the protocol proves a client holds a key without that key ever crossing the network, and it does that through encryption nested inside encryption. I wanted to implement it rather than read about it, so I built it across two independently deployable NestJS services, roughly 1,433 lines of TypeScript: a KDC exposing the Authentication Service and the Ticket Granting Service, and an application service that validates service tickets and manages users, with Redis and PostgreSQL behind them under Docker Compose.
+
+#### The constraint that made it hard
+
+Nested encryption is a cross-cutting concern that touches every endpoint, and it is asymmetric. On the way in, the server has to decrypt a ticket-granting ticket under the TGS's own long-term key, pull the session key out of the decrypted ticket, and only then use that session key to decrypt the client's authenticator. On the way out it has to encrypt two different payloads under two different keys for two different readers. Writing that inline in each handler would have meant repeating the trickiest code in the system in every place it was needed, and getting one ordering wrong silently produces a system that appears to work while proving nothing.
+
+#### What I tried
+
+I put the whole scheme in a NestJS interceptor wrapping every KDC endpoint, so the handlers see decrypted, validated input and return plain objects. Inbound, the interceptor decrypts the ticket-granting ticket with the TGS long-term key, recovers the session key from inside that ticket, and decrypts the authenticator with it. That is the step that carries the protocol's actual guarantee: the client demonstrates possession of a key it never transmitted.
+
+Outbound, it mints a fresh 256-bit session key from a CSPRNG, assembles a ticket carrying the principal, username, source IP, timestamp and negotiated lifetime, and double-encrypts the response. The ticket goes under the target service's key so only that service can open it. The challenge goes under the client's key. Neither party can read the other's half.
+
+Registration happens before any of that, and it has the same requirement: no credential in plaintext on the wire. The client and server run an ephemeral Diffie-Hellman exchange over MODP group 15, derive a shared secret that lives in Redis for 120 seconds, and the client encrypts its password under that secret for the server to decrypt server side before persisting the user through TypeORM with a role attached.
+
+#### The decision, and why
+
+I decided to enforce the protocol's security properties explicitly rather than assume the encryption implied them, because it does not. The TGS rejects a ticket presented from an IP other than the one it was issued to, rejects a mismatch between the username inside the ticket and the one in the authenticator, rejects expired tickets, and rejects authenticators whose timestamp skew from the ticket exceeds two minutes. The Authentication Service looks up client and service principal keys from a Redis-backed keytab and clamps the negotiated ticket lifetime between per-realm bounds of two to ten hours.
+
+Replay protection is the piece I am happiest with, because the data store does the work. A Redis entry keyed on principal, username and realm has its TTL set to the ticket's remaining lifetime, so a captured authenticator cannot be reused inside exactly the window in which it would still be valid, and the entry expires itself the moment it stops mattering. The application service's ticket manager mirrors the same validation for the final service-ticket leg.
+
+Multi-tenancy is real rather than nominal: every principal, session key, replay entry and lifetime policy is namespaced by realm, and the configuration ships two realms to demonstrate the isolation.
+
+#### The outcome
+
+The full three-legged flow works end to end across both services: register, authenticate, obtain a ticket-granting ticket, exchange it for a service ticket, present that ticket to an application service that validates it independently. Underneath sits a crypto service wrapping AES-256-CBC with a random per-message initialisation vector, SHA-256 hashing and secure key generation.
+
+#### What I would do differently
+
+This one has real faults and I would rather name them than have someone find them.
+
+Passwords are stored raw. `UserService.create` decrypts the password and writes it into both Redis and Postgres. Real Kerberos derives a long-term key from the password through a `string2key` function and never keeps the password at all, and that is what I would do now: derive with Argon2 or PBKDF2, then discard.
+
+AES-256-CBC is unauthenticated, so ciphertexts are malleable and an attacker can flip bits undetected. AES-256-GCM, or encrypt-then-MAC with HMAC-SHA256, is the fix.
+
+The interceptor still returns `dec_1` and `dec_2`, the decrypted ticket and challenge, alongside the encrypted response. It is debug output, but as written it hands the client plaintext it should never see, which defeats the encryption entirely. It should be deleted before this is used for anything.
+
+Secrets are committed, including `.env` files and a hard-coded service key in `realms.ts`. And the test suite is scaffolded but empty, which for a security protocol is the sharpest gap of all: the tests are the argument that the implementation is correct.

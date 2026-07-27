@@ -1,0 +1,50 @@
+---
+id: yummy
+name: yummy
+hook: A till that keeps taking orders when the internet drops.
+domain: Desktop and offline-first
+year: '2023'
+stack:
+  - Electron
+  - Angular 13
+  - TypeScript
+  - SASS
+  - TypeORM
+  - SQLite
+repo: https://github.com/MedNoun/yummy
+order: 4
+---
+
+#### The problem
+
+A restaurant till has one requirement that outranks every feature on the list: it has to keep taking orders when the connection goes. Most point-of-sale software treats a server as the source of truth and degrades into an expensive paperweight the moment that assumption fails. Yummy inverts it. The application owns its own database, and the network is something it uses when available rather than something it depends on. I designed and built it solo over five months on Electron and Angular 13, roughly 2,050 lines of TypeScript plus templates, and all thirty commits are mine.
+
+#### The constraint that made it hard
+
+Owning your data locally in Electron pulls in a security problem immediately. The obvious way to give an Angular renderer a database is to switch on Node integration, at which point any script that reaches the renderer has the filesystem. The safe configuration (context isolation on, Node integration off) is the right one, but it means the renderer cannot touch persistence at all, and every repository operation has to cross a process boundary as a message.
+
+#### What I tried
+
+I embedded SQLite in the Electron main process through TypeORM, initialising the data source against a file under the OS application-data directory and registering a repository per entity in a lookup map. A preload script installs a context bridge, and an Angular store service wraps that bridge so components call ordinary typed methods while the main process performs the actual repository work. The renderer never touches Node, and the UI code does not read as though anything unusual is happening.
+
+The domain is five entities (users, categories, products, purchases and bills) over a base entity carrying an auto-increment key, a creation timestamp, a soft-delete column and a synchronisation flag. Cascading relations link categories to products and bills to their purchase lines. Deletes are soft throughout, and that is a deliberate data-modelling decision rather than caution: a bill from March references a product that was removed in April, and the receipt still has to render correctly a year later.
+
+#### The decision, and why
+
+The authentication design is where offline-first stopped being a slogan. Credentials are verified locally against bcrypt hashes with per-user salts, so a server signing in to start a shift has no network dependency at all. Administrators additionally validate against a remote API, which reintroduces exactly the failure I was trying to avoid, so I cache the returned JWT locally and short-circuit the remote round trip whenever a cached token is still unexpired, checking expiry client side rather than assuming the server is reachable. Admin login degrades instead of failing.
+
+The billing workflow keeps the active bill in a service that publishes state through an RxJS replay subject, so components stay synchronised without prop drilling: adding a product either creates a purchase line or increments the quantity of an existing one, removing decrements and deletes at zero, and closing a bill persists it with the current user attached and rolls a fresh one. History is browsable through a lazily paginated cursor fetching ten records at a time, newest first, scoped to the logged-in user, eager loading each bill's purchases and their products and including soft-deleted rows so old receipts still render.
+
+Route guards and resolvers gate access and prefetch data across lazily loaded feature modules for authentication and the main workspace, with a shared module for the reusable card and loader components. It ships as a cross-platform binary through electron-builder using the two package file layout that keeps runtime dependencies out of the bundle.
+
+#### The outcome
+
+The core loop works and it works offline: sign in, build a bill, close it, browse history, all against local SQLite with no server in the path. The Electron security posture is right where it counts, with context isolation enabled and Node integration disabled.
+
+#### What I would do differently
+
+The README claims more than the code delivers, and I would either build the rest or cut the list. Printing and stats are empty classes. The `stats` IPC handler builds a TypeORM query builder and never calls `.getRawMany()`, so it returns the builder rather than any data. Synchronisation is modelled, not built: the `synced` flag and the remote API exist, but there is no reconciliation engine behind them. And `admin.guard.ts` returns `true` unconditionally, which means every route it is supposed to protect is open.
+
+Technically, the preload bridge is the thing I would change first. It exposes generic `send`, `invoke` and `on` for any channel name, which reopens the attack surface context isolation exists to close. The fix is a named channel allowlist, and it is a small change: the hard part, keeping Node out of the renderer, is already done.
+
+Two smaller ones. `copyFile` writes into the application path, which is read-only inside a packaged asar bundle, so it works in development and breaks once shipped; it should target the user-data directory. And `synchronize: true` on TypeORM is fine while developing and will silently alter schemas in production, where real migrations are the answer.

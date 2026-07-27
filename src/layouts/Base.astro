@@ -1,0 +1,69 @@
+---
+import '../styles/global.css';
+import { site } from '../data/site';
+
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = site.description } = Astro.props;
+const canonical = new URL(Astro.url.pathname, Astro.site).href;
+
+const person = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: site.name,
+  jobTitle: site.title,
+  email: `mailto:${site.email}`,
+  url: Astro.site?.href,
+  description: site.description,
+  sameAs: [site.links.linkedin, site.links.github, site.links.gitlab],
+  alumniOf: {
+    '@type': 'CollegeOrUniversity',
+    name: 'INSAT, Université de Carthage',
+  },
+  knowsAbout: [
+    'Data engineering',
+    'Google BigQuery',
+    'Dataform',
+    'Terraform',
+    'Dimensional modelling',
+    'Master data management',
+    'Entity resolution',
+    'Python',
+    'TypeScript',
+  ],
+};
+---
+
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" href="/favicon.ico" sizes="32x32" />
+    <link rel="canonical" href={canonical} />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta name="author" content={site.name} />
+    <meta name="generator" content={Astro.generator} />
+
+    <meta property="og:type" content="profile" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:locale" content="en_GB" />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+
+    <script type="application/ld+json" set:html={JSON.stringify(person)} is:inline />
+  </head>
+  <body>
+    <a class="skip-link" href="#content">Skip to the content</a>
+    <slot />
+  </body>
+</html>

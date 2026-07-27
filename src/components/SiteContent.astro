@@ -1,0 +1,260 @@
+---
+import { getCollection, render } from 'astro:content';
+import { site } from '../data/site';
+
+const projectEntries = await getCollection('projects');
+projectEntries.sort((a, b) => a.data.order - b.data.order);
+const projects = await Promise.all(
+  projectEntries.map(async (entry) => ({
+    data: entry.data,
+    Content: (await render(entry)).Content,
+  })),
+);
+
+const experienceEntries = await getCollection('experience');
+experienceEntries.sort((a, b) => a.data.order - b.data.order);
+const experience = await Promise.all(
+  experienceEntries.map(async (entry) => ({
+    data: entry.data,
+    Content: (await render(entry)).Content,
+  })),
+);
+---
+
+<section class="entry-group" id="about" data-entry="about" data-id="whoami" data-name="whoami">
+  <h2>Who is this</h2>
+  <div class="prose">
+    {site.bio.map((paragraph) => <p>{paragraph}</p>)}
+  </div>
+</section>
+
+<section class="entry-group" id="projects" aria-labelledby="projects-heading">
+  <h2 id="projects-heading">Projects</h2>
+  {
+    projects.map(({ data, Content }) => (
+      <article
+        class="entry"
+        id={data.id}
+        data-entry="project"
+        data-id={data.id}
+        data-name={data.name}
+        data-hook={data.hook}
+        data-domain={data.domain}
+        data-year={data.year}
+        data-stack={data.stack.join(', ')}
+        data-repo={data.repo}
+      >
+        <h3 class="entry-name">{data.name}</h3>
+        <p class="entry-hook">{data.hook}</p>
+        <dl class="entry-meta">
+          <div>
+            <dt>Domain</dt>
+            <dd>{data.domain}</dd>
+          </div>
+          <div>
+            <dt>Year</dt>
+            <dd>{data.year}</dd>
+          </div>
+          <div>
+            <dt>Stack</dt>
+            <dd>{data.stack.join(', ')}</dd>
+          </div>
+          <div>
+            <dt>Repository</dt>
+            <dd>
+              <a href={data.repo} rel="noopener">
+                {data.repo.replace('https://', '')}
+              </a>
+            </dd>
+          </div>
+        </dl>
+        <div class="prose">
+          <Content />
+        </div>
+      </article>
+    ))
+  }
+</section>
+
+<section class="entry-group" id="experience" aria-labelledby="experience-heading">
+  <h2 id="experience-heading">Experience</h2>
+  {
+    experience.map(({ data, Content }) => (
+      <article
+        class="entry"
+        id={data.id}
+        data-entry="experience"
+        data-id={data.id}
+        data-name={data.name}
+        data-hook={data.hook}
+        data-domain={data.domain}
+        data-year={data.year}
+        data-role={data.role}
+        data-org={data.org}
+        data-period={data.period}
+        data-stack={data.stack.join(', ')}
+      >
+        <h3 class="entry-name">{data.role}</h3>
+        <p class="entry-org">
+          {data.org} <span class="entry-period">{data.period}</span>
+        </p>
+        <p class="entry-hook">{data.hook}</p>
+        <dl class="entry-meta">
+          <div>
+            <dt>Domain</dt>
+            <dd>{data.domain}</dd>
+          </div>
+          <div>
+            <dt>Stack</dt>
+            <dd>{data.stack.join(', ')}</dd>
+          </div>
+          {data.link && (
+            <div>
+              <dt>Link</dt>
+              <dd>
+                <a href={data.link} rel="noopener">
+                  {data.link.replace('https://', '')}
+                </a>
+              </dd>
+            </div>
+          )}
+        </dl>
+        <div class="prose">
+          <Content />
+        </div>
+      </article>
+    ))
+  }
+</section>
+
+<section class="entry-group" id="contact" data-entry="contact" data-id="contact" data-name="contact">
+  <h2>Get in touch</h2>
+  <ul class="contact-list">
+    <li><span>email</span> <a href={`mailto:${site.email}`}>{site.email}</a></li>
+    <li>
+      <span>linkedin</span> <a href={site.links.linkedin} rel="noopener">in/mohamedsahnoun</a>
+    </li>
+    <li><span>github</span> <a href={site.links.github} rel="noopener">github.com/MedNoun</a></li>
+    <li>
+      <span>gitlab</span> <a href={site.links.gitlab} rel="noopener">gitlab.com/linguacustodia/edgedb-dto</a>
+    </li>
+    <li><span>article</span> <a href={site.links.article} rel="noopener">launchpad.ai blog</a></li>
+    <li><span>cv</span> <a href={site.cv} download>mohamed-sahnoun-cv-en.pdf</a></li>
+    <li><span>based</span> {site.location}</li>
+  </ul>
+</section>
+
+<style>
+  .entry-group {
+    margin: 0 0 calc(var(--space) * 20) 0;
+  }
+
+  .entry-group > h2 {
+    font-size: var(--t--1);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding-bottom: calc(var(--space) * 2);
+    border-bottom: 1px solid var(--border);
+    margin: 0 0 calc(var(--space) * 8) 0;
+  }
+
+  .entry {
+    margin: 0 0 calc(var(--space) * 18) 0;
+    scroll-margin-top: calc(var(--space) * 6);
+  }
+
+  .entry-name {
+    font-size: var(--t-3);
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0;
+    color: var(--text);
+  }
+
+  .entry-org {
+    margin: calc(var(--space) * 2) 0 0 0;
+    font-size: var(--t--1);
+    color: var(--text);
+  }
+
+  .entry-period {
+    color: var(--muted);
+    margin-left: calc(var(--space) * 2);
+  }
+
+  .entry-hook {
+    font-family: var(--prose);
+    font-size: var(--t-2);
+    line-height: 1.4;
+    color: var(--muted);
+    max-width: var(--measure);
+    margin: calc(var(--space) * 3) 0 0 0;
+  }
+
+  .entry-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--space) * 2) calc(var(--space) * 8);
+    margin: calc(var(--space) * 6) 0 calc(var(--space) * 8) 0;
+    padding: calc(var(--space) * 4) 0;
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    font-size: var(--t--2);
+  }
+
+  .entry-meta > div {
+    display: flex;
+    gap: calc(var(--space) * 2);
+    min-width: 0;
+  }
+
+  .entry-meta dt {
+    color: var(--muted);
+    text-transform: lowercase;
+  }
+
+  .entry-meta dt::after {
+    content: ':';
+  }
+
+  .entry-meta dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .contact-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: calc(var(--space) * 2);
+    font-size: var(--t--1);
+  }
+
+  .contact-list li {
+    overflow-wrap: anywhere;
+  }
+
+  .contact-list span {
+    display: inline-block;
+    min-width: 9ch;
+    color: var(--muted);
+  }
+
+  @media (max-width: 767px) {
+    .entry-name {
+      font-size: var(--t-2);
+    }
+
+    .entry-hook {
+      font-size: var(--t-1);
+    }
+
+    .entry-meta {
+      flex-direction: column;
+      gap: calc(var(--space) * 2);
+    }
+  }
+</style>

@@ -1,0 +1,88 @@
+---
+import Base from '../layouts/Base.astro';
+import SiteContent from '../components/SiteContent.astro';
+import { site } from '../data/site';
+---
+
+<Base
+  title={`${site.name}, ${site.title}, plain text`}
+  description="Every case study from mohamedsahnoun.dev as one plain scrolling document: BigQuery and Dataform platform work, entity resolution, and from-scratch BitTorrent and Kerberos implementations."
+>
+  <header class="wrap masthead">
+    <h1>{site.name}</h1>
+    <p class="masthead-title">{site.title}</p>
+    <p class="masthead-tagline">{site.tagline}</p>
+    <p class="masthead-links">
+      <a href={`mailto:${site.email}`}>{site.email}</a>
+      <a href={site.links.linkedin} rel="noopener">linkedin</a>
+      <a href={site.links.github} rel="noopener">github</a>
+      <a href={site.cv} download>cv</a>
+      <a href="/">console version</a>
+    </p>
+  </header>
+
+  <main class="wrap" id="content">
+    <SiteContent />
+  </main>
+
+  <footer class="wrap site-footer">
+    <p>
+      This is the plain document version. The <a href="/">console version</a> holds the identical content.
+    </p>
+  </footer>
+</Base>
+
+<style>
+  .masthead {
+    padding-top: calc(var(--space) * 16);
+    padding-bottom: calc(var(--space) * 12);
+  }
+
+  .masthead h1 {
+    font-size: var(--t-4);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .masthead-title {
+    margin: calc(var(--space) * 1) 0 0 0;
+    color: var(--accent);
+    font-size: var(--t-0);
+  }
+
+  .masthead-tagline {
+    font-family: var(--prose);
+    font-size: var(--t-2);
+    line-height: 1.45;
+    color: var(--muted);
+    max-width: var(--measure);
+    margin: calc(var(--space) * 5) 0 0 0;
+  }
+
+  .masthead-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--space) * 2) calc(var(--space) * 6);
+    margin: calc(var(--space) * 6) 0 0 0;
+    font-size: var(--t--1);
+    overflow-wrap: anywhere;
+  }
+
+  .site-footer {
+    padding: calc(var(--space) * 10) 0 calc(var(--space) * 16);
+    border-top: 1px solid var(--border);
+    color: var(--muted);
+    font-size: var(--t--2);
+  }
+
+  @media (max-width: 767px) {
+    .masthead h1 {
+      font-size: var(--t-3);
+    }
+
+    .masthead-tagline {
+      font-size: var(--t-1);
+    }
+  }
+</style>

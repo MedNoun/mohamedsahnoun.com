@@ -1,0 +1,58 @@
+---
+id: fellowship-ai
+name: Piano performance assessment
+role: Machine Learning Engineer
+org: Fellowship.ai (Launchpad.ai)
+period: Apr 2022 to Jul 2022
+hook: A published method for scoring student piano performances, at 95.8% F-score against a 92.9% baseline.
+domain: Machine learning
+year: '2022'
+stack:
+  - Python
+  - librosa
+  - music21
+  - pretty_midi
+  - pandas
+  - Flask
+  - React Native
+link: https://www.launchpad.ai/blog/an-ai-based-method-for-student-piano-performance-assessment
+order: 3
+---
+
+#### The problem
+
+The brief was one word: "moderate music". As one of three machine learning fellows at Fellowship.ai I worked on turning that into something a student could use, and we landed on performance assessment: record a student playing a piece, compare it against the score, and return quantitative feedback on what they actually played. We published the method, and I am a credited co-author.
+
+We began with a literature and tooling survey across automatic music transcription, symbolic music processing and audio signal analysis, working in Python with librosa, music21, pretty_midi and optical music recognition for turning sheet music into MIDI.
+
+#### The constraint that made it hard
+
+Our first deliverable was a tempo-analysis algorithm for classical and student piano, where off-the-shelf beat trackers do poorly. From a mel spectrogram we extracted the onset strength envelope, derived a predominant local pulse curve, picked beats at pulse peaks, and computed BPM from inter-beat intervals, correcting the well-known metrical ambiguity where estimates land at two or three times the true tempo by reconciling candidates against a reference BPM.
+
+Then we ran it on a virtuoso recording and on a score-synthesised rendition of the same piece, and the result reframed the entire project. Expressive rubato makes a human performance diverge constantly from the synthetic reference. Naive audio comparison cannot separate artistry from error, because at the signal level a beautiful interpretive stretch and a mistake look identical. Any system built on that comparison would penalise musicianship.
+
+#### What I tried
+
+We redefined the task: evaluate the performance against the composer's symbolic intent, not against a reference audio rendering, leaving room for expression by design. That pushed us into automatic music transcription, where we hit a reproducibility wall. Several high-profile papers shipped without source code, pretrained weights or usable environment documentation, and reimplementing them was not a three-month proposition.
+
+We settled on Kwon et al.'s autoregressive multi-state note model (ISMIR 2020), pretrained on MAESTRO and capable of real-time operation.
+
+#### The decision, and why
+
+The model's onset F-score was 94.7%, but onset plus offset detection reached only 79.4%. Rather than accept 79.4% across the board, we discarded offset detection entirely and quantised every transcribed note to a fixed crotchet: we gave up duration information we could not trust in exchange for note identification we could. For assessing which notes a student played, that trade is straightforwardly worth making.
+
+Alignment was harder than expected. Dynamic time warping over note-onset series broke down on chords and polyphony, where several notes share an onset and the warping path has no way to choose. We adopted Nakamura et al.'s hidden Markov model symbolic alignment (ISMIR 2017), which reaches 99.2% to 99.8% accuracy at very low computational cost. It ships as a C++ binary emitting loosely structured output, so I helped build the Python interoperability layer that parses its results into pandas DataFrames and integrates it into our pipeline, producing a per-note classification of reference, incorrect, missing or extra.
+
+We exposed the pipeline as a Flask REST API taking a raw audio recording plus a reference MIDI file and returning the labelled note list, then built a cross-platform React Native client handling recording, API interaction and rendering of annotated sheet music.
+
+#### The outcome
+
+On the evaluation dataset the method reached a 95.8% note-classification F-score, outperforming Benetos et al. at 92.9% and approaching Wang et al. at 98.0%. The comparison matters more than the ranking: both baselines rely on non-negative matrix factorisation requiring per-song dictionary training, with Wang et al. costing roughly one minute of compute per minute of audio. Our pretrained neural approach runs far faster and stays model-agnostic, so it improves automatically as transcription research advances rather than needing to be rebuilt.
+
+Three fellows worked jointly across research and development, so the honest description of my part is co-authorship of the published method plus hands-on work across the pipeline, including the alignment interoperability layer.
+
+#### What I would do differently
+
+Discarding offsets was the right call in a three-month window and it is still the limitation of the result. The system tells a student which notes were wrong and nothing about how long they held them, so it cannot see rushing, dragging or a pedal held through a rest. Now that transcription offset accuracy has improved, that is the part worth revisiting first, and because the pipeline is model-agnostic it is a swap rather than a rewrite.
+
+I would also treat the reproducibility wall as a finding rather than an obstacle. We lost real time to papers that could not be run, and publishing our own environment and evaluation harness alongside the article would have been the useful response to it.
