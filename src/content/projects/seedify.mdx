@@ -21,6 +21,9 @@ repo: https://github.com/MedNoun/seedify
 order: 2
 ---
 
+import AnnouncePayload from '../../components/diagrams/AnnouncePayload.astro';
+import TrackerTransports from '../../components/diagrams/TrackerTransports.astro';
+
 #### What it does
 
 It joins a real swarm, talks to trackers over both HTTP and UDP, downloads a torrent piece by piece, SHA-1 verifies every piece against the metadata, and writes the result across file boundaries at the right offsets. Roughly 1,841 lines of TypeScript across 22 modules, written with a partner over screen share between February and June 2023.
@@ -35,9 +38,13 @@ Choosing TypeScript was deliberate. Existing clients are written in Python and C
 
 Trackers speak two incompatible transports. HTTP announce is a percent-escaped query returning a bencoded body, which is tedious but forgiving. UDP announce (BEP 15) is neither. It is a connect handshake using the protocol's magic constant, four-byte transaction IDs echoed back and verified against every response, and a 98-byte announce payload with 64-bit downloaded, left and uploaded counters plus a numeric event code written at fixed byte offsets. **Nothing in that path fails loudly. Get an offset wrong and the tracker simply returns something that is not an error and not the peers you asked for.**
 
+<AnnouncePayload />
+
 #### What I tried
 
 We put both transports behind one interface and let the announce state machine stay ignorant of which one it was talking to. That state machine (stopped, connecting, waiting, error) drives the whole announce lifecycle: scheduling re-announces from the interval the tracker returns, retrying with a thirty second backoff on transient failure, and shutting down cleanly when DNS fails unrecoverably.
+
+<TrackerTransports />
 
 Everything before that is metadata handling. We bencode-decode the `.torrent` dictionary, re-encode the `info` sub-dictionary and SHA-1 hash it to derive the infohash that identifies the swarm, flatten multi-tier `announce-list` entries, and normalise single-file and multi-file torrents into one shape carrying per-file lengths and byte offsets, so nothing downstream has to care which kind it is. Returned peers are decoded from both the compact form (six raw bytes of IPv4 address plus a big-endian port) and the legacy dictionary form.
 

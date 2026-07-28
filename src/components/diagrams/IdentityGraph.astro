@@ -60,7 +60,7 @@
       <text x="409" y="104" text-anchor="middle">union-find</text>
     </g>
 
-    <g class="golden">
+    <g class="accent">
       <circle cx="486" cy="116" r="15" />
       <text x="486" y="158" text-anchor="middle">one golden ID</text>
     </g>
@@ -73,72 +73,3 @@
   </figcaption>
 </figure>
 
-<style>
-  .diagram {
-    margin: 0;
-  }
-
-  /* max-width and height: auto come from the global `img, svg` rule. */
-  .diagram svg {
-    display: block;
-    width: 100%;
-    font-family: var(--mono);
-    /* User units, so it scales with the viewBox rather than fighting it. */
-    font-size: 12px;
-  }
-
-  /* The edges that exist carry the argument, so they are the visible ones. */
-  .edge line {
-    stroke: var(--muted);
-    stroke-width: 1.5;
-  }
-
-  /* The edge that does not exist is drawn faintly, at --border against --bg. */
-  .edge.is-absent line {
-    stroke: var(--border);
-    stroke-width: 1;
-    stroke-dasharray: 3 4;
-  }
-
-  .edge-label text,
-  .collapse text {
-    fill: var(--muted);
-  }
-
-  .node circle {
-    fill: var(--surface);
-    stroke: var(--muted);
-    stroke-width: 1.5;
-  }
-
-  .node-label text {
-    fill: var(--text);
-  }
-
-  .collapse line {
-    stroke: var(--muted);
-  }
-
-  .collapse polygon {
-    fill: var(--muted);
-  }
-
-  /* The one thing the pipeline produces, so the one thing in the accent colour. */
-  .golden circle {
-    fill: none;
-    stroke: var(--accent);
-    stroke-width: 2;
-  }
-
-  .golden text {
-    fill: var(--accent);
-  }
-
-  .diagram figcaption {
-    font-family: var(--mono);
-    font-size: var(--t--2);
-    line-height: 1.6;
-    color: var(--muted);
-    margin-top: calc(var(--space) * 3);
-  }
-</style>

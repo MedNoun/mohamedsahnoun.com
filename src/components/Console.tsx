@@ -11,8 +11,12 @@ import { chips, completions, filterChips, match, normalise, type Table } from '.
 import { site } from '../data/site';
 import './console/console.css';
 
+/*
+ * No echo block. The entry box keeps the query it ran, so repeating it here
+ * would put the same text on screen twice and turn the console into a notebook
+ * transcript. What is below the box is the answer, not a record of the asking.
+ */
 type Block =
-  | { key: number; kind: 'echo'; text: string }
   | { key: number; kind: 'note'; text: string; lead?: string }
   | { key: number; kind: 'error'; text: string; suggestion: string }
   | {
@@ -40,6 +44,21 @@ type Block =
 const AUTO_QUERY = 'SELECT * FROM experience;';
 const VIEW_KEY = 'msd-view';
 
+/*
+ * What the placeholder cycles through while the box is untouched. The default
+ * comes first, because that is the query already showing its rows below. The
+ * rest are one of each thing the matcher can do: another scan, a filter, an
+ * aggregate, and a question in plain English to prove that also works.
+ */
+const DEMO_QUERIES = [
+  AUTO_QUERY,
+  'SELECT * FROM projects;',
+  "SELECT * FROM projects WHERE stack CONTAINS 'Python';",
+  'SELECT domain, COUNT(*) FROM projects GROUP BY domain;',
+  'SELECT * FROM lessons;',
+  'how do you handle data quality?',
+];
+
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -47,10 +66,10 @@ export default function Console() {
   const [mounted, setMounted] = useState(false);
   const [view, setView] = useState<'console' | 'reader'>('console');
   const [narrow, setNarrow] = useState(false);
-  const [inputOpen, setInputOpen] = useState(false);
   const [value, setValue] = useState('');
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [status, setStatus] = useState('');
+  const [placeholder, setPlaceholder] = useState(AUTO_QUERY);
   const [openTable, setOpenTable] = useState<Table | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -81,7 +100,8 @@ export default function Console() {
     (next: Block[] | ((prev: Block[]) => Block[]), settle?: () => void) => {
       setBlocks(next);
       requestAnimationFrame(() => {
-        if (outputEl.current) outputEl.current.scrollTop = outputEl.current.scrollHeight;
+        // Top, not bottom: the panel is replaced each run, not appended to.
+        if (outputEl.current) outputEl.current.scrollTop = 0;
         settle?.();
       });
     },
@@ -144,7 +164,6 @@ export default function Console() {
   const run = useCallback(
     (raw: string) => {
       const intent = match(raw, entries.current);
-      const echo: Block = { key: nextKey(), kind: 'echo', text: raw.trim() || AUTO_QUERY };
       const all = entries.current;
 
       if (view === 'reader' && intent.kind !== 'everything') applyView('console');
@@ -158,7 +177,6 @@ export default function Console() {
           syncHash(null);
           setStatus(`${byKind(kind).length} rows.`);
           show([
-            echo,
             listBlock(kind),
             {
               key: nextKey(),
@@ -181,7 +199,6 @@ export default function Console() {
           syncHash(null);
           setStatus(`${pool.length} of ${byKind(kind).length} rows match.`);
           show([
-            echo,
             listBlock(
               kind,
               pool,
@@ -212,7 +229,6 @@ export default function Console() {
           syncHash(null);
           setStatus(`${rows.length} groups.`);
           show([
-            echo,
             {
               key: nextKey(),
               kind: 'table',
@@ -232,7 +248,6 @@ export default function Console() {
           setStatus(`Lessons table opened, ${byKind('project').length + byKind('experience').length} rows.`);
           show(
             [
-              echo,
               {
                 key: nextKey(),
                 kind: 'note',
@@ -256,7 +271,6 @@ export default function Console() {
           show(
             (prev) => [
               ...prev.filter((block) => block.kind === 'result'),
-              echo,
               {
                 key: nextKey(),
                 kind: 'note',
@@ -276,7 +290,7 @@ export default function Console() {
           syncHash('about');
           setStatus('About opened.');
           show(
-            [echo, { key: nextKey(), kind: 'note', lead: 'whoami', text: 'Below the console.' }],
+            [{ key: nextKey(), kind: 'note', lead: 'whoami', text: 'Below the console.' }],
             () => entry && scrollTo(entry),
           );
           break;
@@ -289,7 +303,6 @@ export default function Console() {
           syncHash('contact');
           setStatus('Contact details listed.');
           show([
-            echo,
             {
               key: nextKey(),
               kind: 'links',
@@ -312,7 +325,6 @@ export default function Console() {
           syncHash('contact');
           setStatus('CV download listed.');
           show([
-            echo,
             {
               key: nextKey(),
               kind: 'links',
@@ -331,7 +343,6 @@ export default function Console() {
           syncHash(null);
           setStatus('Reader view. Every entry is on the page.');
           show([
-            echo,
             {
               key: nextKey(),
               kind: 'note',
@@ -347,7 +358,6 @@ export default function Console() {
           syncHash(null);
           setStatus('No match.');
           show([
-            echo,
             {
               key: nextKey(),
               kind: 'error',
@@ -369,10 +379,15 @@ export default function Console() {
     [applyView, byKind, find, listBlock, show, syncHash, view],
   );
 
+  /**
+   * The box keeps what it ran. Clearing it threw away the only record of the
+   * query, and a row click or a chip would leave an empty prompt above its own
+   * result. `run` is the effect, `submit` is the effect plus owning the box.
+   */
   const submit = useCallback(
     (raw: string) => {
       run(raw);
-      setValue('');
+      setValue(raw.trim() || AUTO_QUERY);
     },
     [run],
   );
@@ -388,10 +403,53 @@ export default function Console() {
 
   const cancelTyping = useCallback(() => {
     if (typing.current !== null) {
-      window.clearInterval(typing.current);
+      window.clearTimeout(typing.current);
       typing.current = null;
     }
   }, []);
+
+  /**
+   * The placeholder types a query, holds it, deletes it and moves to the next,
+   * so an untouched box demonstrates its own grammar: a table scan, a filter, an
+   * aggregate. It settles on the default the moment the visitor takes the box
+   * over, because that is the query whose rows are already on screen.
+   *
+   * A chain of timeouts rather than an interval: the phases have different
+   * durations, and an interval would need the slowest one for all of them.
+   */
+  const startRotating = useCallback(() => {
+    // Begin by erasing the default, which is already on screen, rather than
+    // cutting from the full string to a single character.
+    let query = 0;
+    let cut = AUTO_QUERY.length;
+    let erasing = true;
+
+    const step = () => {
+      const text = DEMO_QUERIES[query];
+      cut += erasing ? -1 : 1;
+      setPlaceholder(text.slice(0, cut) || ' ');
+
+      let wait = erasing ? 18 : 42;
+      if (!erasing && cut >= text.length) {
+        erasing = true;
+        wait = 2200; // long enough to read the whole query
+      } else if (erasing && cut <= 0) {
+        erasing = false;
+        query = (query + 1) % DEMO_QUERIES.length;
+        wait = 320;
+      }
+
+      typing.current = window.setTimeout(step, wait);
+    };
+
+    typing.current = window.setTimeout(step, 900);
+  }, []);
+
+  /** Rotation is a hint, not a mode. Any real interest in the box ends it. */
+  const settlePlaceholder = useCallback(() => {
+    cancelTyping();
+    setPlaceholder(AUTO_QUERY);
+  }, [cancelTyping]);
 
   useEffect(() => {
     entries.current = indexContent();
@@ -434,23 +492,18 @@ export default function Console() {
     } else {
       document.body.dataset.view = 'console';
       if (linked) {
-        const query = `DESCRIBE ${linked.id};`;
-        setValue(query);
-        run(query);
-      } else if (prefersReducedMotion()) {
-        setValue(AUTO_QUERY);
-        run(AUTO_QUERY);
+        // Someone was sent this link. Their query goes in the box, not a demo.
+        setValue(`DESCRIBE ${linked.id};`);
+        run(`DESCRIBE ${linked.id};`);
       } else {
-        // Never an empty prompt: type the first query, then run it.
-        let i = 0;
-        typing.current = window.setInterval(() => {
-          i += 1;
-          setValue(AUTO_QUERY.slice(0, i));
-          if (i >= AUTO_QUERY.length) {
-            cancelTyping();
-            window.setTimeout(() => submit(AUTO_QUERY), 160);
-          }
-        }, 20);
+        /*
+         * The default query runs so the panel is never empty, but the box stays
+         * empty so the rotating placeholder can show what else can go in it.
+         * The box is the one thing on screen teaching the console's vocabulary,
+         * and an empty box teaches nothing.
+         */
+        run(AUTO_QUERY);
+        if (!prefersReducedMotion()) startRotating();
       }
     }
 
@@ -465,7 +518,7 @@ export default function Console() {
   const vocabulary = useMemo(() => completions(entries.current), [mounted]);
 
   const onKeyDown = (event: KeyboardEvent) => {
-    cancelTyping();
+    settlePlaceholder();
 
     // Read the field itself: a keystroke can arrive before the state has settled.
     const field = event.currentTarget as HTMLInputElement;
@@ -545,8 +598,6 @@ export default function Console() {
     );
   }
 
-  const showInput = !narrow || inputOpen;
-
   return (
     <div class="console">
       <div class="console-chrome">
@@ -570,21 +621,66 @@ export default function Console() {
         <p class="visually-hidden" role="status" aria-live="polite">{status}</p>
 
         {/*
-          tabindex so the scrollable log is reachable by keyboard on its own.
+          The box comes first and the answer sits under it. One box at every
+          width: no narrow-screen swap for a "Type a query" button, because a
+          button is not an editable box.
+        */}
+        <div class="console-prompt">
+          <span class="console-caret" aria-hidden="true">&gt;</span>
+          <label class="visually-hidden" for="console-input">
+            Query this portfolio, in SQL or in plain English
+          </label>
+          <input
+            id="console-input"
+            class="console-input"
+            ref={inputEl}
+            type="text"
+            value={value}
+            autocomplete="off"
+            autocapitalize="off"
+            spellcheck={false}
+            placeholder={placeholder}
+            onFocus={settlePlaceholder}
+            onInput={(event) => {
+              settlePlaceholder();
+              setValue(event.currentTarget.value);
+            }}
+            onKeyDown={onKeyDown}
+          />
+          <button type="button" class="console-run" onClick={() => submit(value)}>
+            Run
+          </button>
+        </div>
+
+        <div class="chips">
+          {chips.map((chip) => (
+            <button type="button" class="chip" key={chip.label} onClick={() => runChip(chip.query)}>
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Its own row: these are queries, not navigation, and the labels are long. */}
+        <div class="chips-query">
+          {filterChips.map((chip) => (
+            <button
+              type="button"
+              class="chip is-filter"
+              key={chip.label}
+              onClick={() => runChip(chip.query)}
+            >
+              {chip.label}
+            </button>
+          ))}
+        </div>
+
+        {/*
+          tabindex so the scrollable panel is reachable by keyboard on its own.
           Deliberately not a live region: role="log" would announce whole result
           tables. The status line above carries the announcement instead.
         */}
         <div class="console-output" ref={outputEl} tabIndex={0} aria-label="Query results">
           {blocks.map((block) => {
-            if (block.kind === 'echo') {
-              return (
-                <p class="block-echo" key={block.key}>
-                  <span class="caret" aria-hidden="true">&gt;</span>
-                  {block.text}
-                </p>
-              );
-            }
-
             if (block.kind === 'note') {
               return (
                 <p class="block-note" key={block.key}>
@@ -676,67 +772,6 @@ export default function Console() {
               </div>
             );
           })}
-        </div>
-
-        {showInput ? (
-          <div class="console-prompt">
-            <span class="console-caret" aria-hidden="true">&gt;</span>
-            <label class="visually-hidden" for="console-input">
-              Query this portfolio, in SQL or in plain English
-            </label>
-            <input
-              id="console-input"
-              class="console-input"
-              ref={inputEl}
-              type="text"
-              value={value}
-              autocomplete="off"
-              autocapitalize="off"
-              spellcheck={false}
-              placeholder="SELECT * FROM experience;"
-              onInput={(event) => {
-                cancelTyping();
-                setValue(event.currentTarget.value);
-              }}
-              onKeyDown={onKeyDown}
-            />
-            <button type="button" class="console-run" onClick={() => submit(value)}>
-              Run
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            class="console-btn console-open-input"
-            onClick={() => {
-              setInputOpen(true);
-              window.setTimeout(() => inputEl.current?.focus(), 0);
-            }}
-          >
-            Type a query
-          </button>
-        )}
-
-        <div class="chips">
-          {chips.map((chip) => (
-            <button type="button" class="chip" key={chip.label} onClick={() => runChip(chip.query)}>
-              {chip.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Its own row: these are queries, not navigation, and the labels are long. */}
-        <div class="chips-query">
-          {filterChips.map((chip) => (
-            <button
-              type="button"
-              class="chip is-filter"
-              key={chip.label}
-              onClick={() => runChip(chip.query)}
-            >
-              {chip.label}
-            </button>
-          ))}
         </div>
 
         {!narrow ? (

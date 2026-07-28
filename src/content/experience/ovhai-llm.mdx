@@ -26,6 +26,8 @@ link: https://llm.ovhai.com
 order: 2
 ---
 
+import MessageEnvelope from '../../components/diagrams/MessageEnvelope.astro';
+
 #### The problem
 
 OVHai LLM trains Transformer-based neural machine translation models for banks, investment funds and other regulated financial institutions. **Those models are only as good as the corpora behind them, and the data team was preparing every corpus by hand for each new language pair: slow, inconsistent, and under a garbage-in-garbage-out constraint, a direct risk to model quality.** My five-month end-of-studies internship in Paris was to re-architect the internal platform that does that preparation, Datomatique, and automate the stages that were still manual.
@@ -49,6 +51,8 @@ Callbacks were hard-coded, so extending behaviour meant editing library source. 
 On that foundation I built four containerised microservices from a standardised boilerplate template repository: document extraction (sentence- or paragraph-level parsing of PDFs from object storage with automatic language detection), translation serving the lab's in-house engines through Sockeye, COMET-based translation quality estimation, and monolingual and bilingual regex filtering driven by rules stored in EdgeDB.
 
 Services communicate through a self-describing JSON envelope carrying the ordered task list, a current-task index each service increments, per-service configuration, the target queue, and dedicated exception and traceback fields. A message therefore knows its own remaining itinerary, which means no service needs to know what comes after it and the pipeline can be reordered by changing the message rather than the code.
+
+<MessageEnvelope />
 
 #### The outcome
 

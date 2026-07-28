@@ -56,27 +56,22 @@
 }
 
 /*
+ * The result panel, under the box and the chips that fill it. Replaced on every
+ * run, so the cap is a safety net rather than something a visitor meets: the
+ * widest result is a four-row table.
+ *
  * No overscroll-behavior here. overflow-y: auto makes this a scroll container
  * even when the content fits, and `contain` then swallows the wheel instead of
  * passing it to the page, so the whole site felt frozen with the cursor over a
- * short result. Chaining is the correct behaviour: scroll the log while it has
+ * short result. Chaining is the correct behaviour: scroll the panel while it has
  * somewhere to go, scroll the page after that.
  */
 .console-output {
   display: grid;
   gap: calc(var(--space) * 4);
+  margin-top: calc(var(--space) * 5);
   max-height: 62vh;
   overflow-y: auto;
-}
-
-.block-echo {
-  color: var(--muted);
-  overflow-wrap: anywhere;
-}
-
-.block-echo .caret {
-  color: var(--accent);
-  margin-right: 1ch;
 }
 
 .block-note {
@@ -186,13 +181,14 @@
   color: var(--muted);
 }
 
+/* The rule divides the box from the results, which are now underneath it. */
 .console-prompt {
   display: flex;
   align-items: center;
   gap: calc(var(--space) * 2);
-  margin-top: calc(var(--space) * 4);
-  padding-top: calc(var(--space) * 4);
-  border-top: 1px solid var(--border);
+  margin-bottom: calc(var(--space) * 4);
+  padding-bottom: calc(var(--space) * 4);
+  border-bottom: 1px solid var(--border);
 }
 
 .console-caret {
@@ -214,7 +210,7 @@
 }
 
 .console-prompt:focus-within {
-  border-top-color: var(--accent);
+  border-bottom-color: var(--accent);
 }
 
 .console-run {
@@ -345,11 +341,5 @@
     border-radius: var(--radius);
     text-align: left;
     font-size: var(--t--1);
-  }
-
-  .console-open-input {
-    width: 100%;
-    min-height: 44px;
-    margin-top: calc(var(--space) * 4);
   }
 }

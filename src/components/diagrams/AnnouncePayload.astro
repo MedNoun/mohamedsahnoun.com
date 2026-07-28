@@ -1,0 +1,120 @@
+---
+/*
+ * The BEP 15 UDP announce request, packed by hand at fixed byte offsets.
+ * 8 + 4 + 4 + 20 + 20 + 8 + 8 + 8 + 4 + 4 + 4 + 4 + 2 = 98.
+ *
+ * Boxes are drawn to scale at 13 user units per byte, so the rows have different
+ * widths and a 2-byte port really is an eighth of an 8-byte counter. Two labels
+ * are abbreviated because their boxes are narrower than their names:
+ * transaction_id and num_want. Both are spelled out in the caption.
+ *
+ * transaction_id carries the accent: echoing it back and verifying it against
+ * every response is what makes the transport work at all.
+ *
+ * Styling comes from the shared .diagram rules in src/styles/global.css.
+ */
+---
+
+<figure class="diagram">
+  <svg
+    viewBox="-14 -6 588 270"
+    role="img"
+    aria-labelledby="announce-title announce-desc"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title id="announce-title">Byte layout of the 98-byte BEP 15 UDP announce request</title>
+    <desc id="announce-desc">
+      The announce payload is 98 bytes written at fixed offsets: connection_id 8 bytes at offset 0,
+      action 4, transaction_id 4, info_hash 20, peer_id 20, then the 8-byte downloaded, left and
+      uploaded counters, then the 4-byte event, ip, key and num_want fields, and finally a 2-byte
+      port at offset 96.
+    </desc>
+
+    <g class="edge-label">
+      <text x="0" y="12">98 bytes, fixed offsets, written by hand</text>
+    </g>
+
+    <!-- Row 1: offsets 0 to 16 -->
+    <g class="field">
+      <rect x="0" y="24" width="104" height="30" rx="2" />
+      <rect x="104" y="24" width="52" height="30" rx="2" />
+      <text x="52" y="44" text-anchor="middle">connection_id</text>
+      <text x="130" y="44" text-anchor="middle">action</text>
+    </g>
+    <g class="accent">
+      <rect x="156" y="24" width="52" height="30" rx="2" />
+      <text x="182" y="44" text-anchor="middle">txn_id</text>
+    </g>
+    <g class="offset">
+      <text x="0" y="66" text-anchor="middle">0</text>
+      <text x="104" y="66" text-anchor="middle">8</text>
+      <text x="156" y="66" text-anchor="middle">12</text>
+      <text x="208" y="66" text-anchor="middle">16</text>
+    </g>
+
+    <!-- Row 2: offsets 16 to 56 -->
+    <g class="field">
+      <rect x="0" y="80" width="260" height="30" rx="2" />
+      <rect x="260" y="80" width="260" height="30" rx="2" />
+      <text x="130" y="100" text-anchor="middle">info_hash</text>
+      <text x="390" y="100" text-anchor="middle">peer_id</text>
+    </g>
+    <g class="offset">
+      <text x="0" y="122" text-anchor="middle">16</text>
+      <text x="260" y="122" text-anchor="middle">36</text>
+      <text x="520" y="122" text-anchor="middle">56</text>
+    </g>
+
+    <!-- Row 3: the three 64-bit counters, offsets 56 to 80 -->
+    <g class="field">
+      <rect x="0" y="136" width="104" height="30" rx="2" />
+      <rect x="104" y="136" width="104" height="30" rx="2" />
+      <rect x="208" y="136" width="104" height="30" rx="2" />
+      <text x="52" y="156" text-anchor="middle">downloaded</text>
+      <text x="156" y="156" text-anchor="middle">left</text>
+      <text x="260" y="156" text-anchor="middle">uploaded</text>
+    </g>
+    <g class="offset">
+      <text x="0" y="178" text-anchor="middle">56</text>
+      <text x="104" y="178" text-anchor="middle">64</text>
+      <text x="208" y="178" text-anchor="middle">72</text>
+      <text x="312" y="178" text-anchor="middle">80</text>
+    </g>
+
+    <!-- Row 4: offsets 80 to 98 -->
+    <g class="field is-tight">
+      <rect x="0" y="192" width="52" height="30" rx="2" />
+      <rect x="52" y="192" width="52" height="30" rx="2" />
+      <rect x="104" y="192" width="52" height="30" rx="2" />
+      <rect x="156" y="192" width="52" height="30" rx="2" />
+      <rect x="208" y="192" width="26" height="30" rx="2" />
+      <text x="26" y="212" text-anchor="middle">event</text>
+      <text x="78" y="212" text-anchor="middle">ip</text>
+      <text x="130" y="212" text-anchor="middle">key</text>
+      <text x="182" y="212" text-anchor="middle">want</text>
+      <text x="221" y="212" text-anchor="middle">port</text>
+    </g>
+    <g class="offset">
+      <text x="0" y="234" text-anchor="middle">80</text>
+      <text x="52" y="234" text-anchor="middle">84</text>
+      <text x="104" y="234" text-anchor="middle">88</text>
+      <text x="156" y="234" text-anchor="middle">92</text>
+      <text x="208" y="234" text-anchor="middle">96</text>
+      <text x="234" y="234" text-anchor="middle">98</text>
+    </g>
+
+    <g class="edge-label">
+      <text x="0" y="252">
+        get one offset wrong and the tracker answers, just not with peers
+      </text>
+    </g>
+  </svg>
+
+  <figcaption>
+    The 98-byte announce request, drawn to scale at 13 units per byte across four rows.
+    <code>txn_id</code> is <code>transaction_id</code> and <code>want</code> is
+    <code>num_want</code>, abbreviated because their boxes are narrower than their names. The
+    transaction ID is highlighted because it is echoed back by the tracker and verified against every
+    response.
+  </figcaption>
+</figure>
