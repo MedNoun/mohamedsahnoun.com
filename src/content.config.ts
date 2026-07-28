@@ -8,6 +8,10 @@ const projects = defineCollection({
     id: z.string(),
     name: z.string(),
     hook: z.string(),
+    /** The headline numbers, as the skim layer above the prose. */
+    result: z.string(),
+    /** One line compressing this entry's "what I would do differently". */
+    lesson: z.string(),
     domain: z.string(),
     year: z.string(),
     stack: z.array(z.string()),
@@ -25,6 +29,8 @@ const experience = defineCollection({
     org: z.string(),
     period: z.string(),
     hook: z.string(),
+    result: z.string(),
+    lesson: z.string(),
     domain: z.string(),
     year: z.string(),
     stack: z.array(z.string()),

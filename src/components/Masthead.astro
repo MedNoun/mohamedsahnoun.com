@@ -1,0 +1,130 @@
+---
+import { Image } from 'astro:assets';
+import { site } from '../data/site';
+import portrait from '../assets/portrait.jpg';
+
+interface Props {
+  /** The console page links out to /plain/, the plain page links back. */
+  variant: 'console' | 'plain';
+}
+
+const { variant } = Astro.props;
+---
+
+<header class="wrap masthead">
+  <div class="masthead-id">
+    <Image
+      class="masthead-portrait"
+      src={portrait}
+      alt={`${site.name}, ${site.title}`}
+      width={96}
+      height={96}
+      densities={[1, 2]}
+      loading="eager"
+    />
+    <div>
+      <h1>{site.name}</h1>
+      <p class="masthead-title">{site.title}</p>
+      <p class="masthead-availability">{site.availability.join(' · ')}</p>
+    </div>
+  </div>
+
+  <p class="masthead-tagline">{site.tagline}</p>
+
+  <p class="masthead-links">
+    <a href={`mailto:${site.email}`}>{site.email}</a>
+    <a href={site.links.linkedin} rel="noopener">linkedin</a>
+    <a href={site.links.github} rel="noopener">github</a>
+    <a href={site.links.article} rel="noopener">published article</a>
+    <a href={site.cv} download>cv</a>
+    {
+      variant === 'console' ? (
+        <a href="/plain/">plain text version</a>
+      ) : (
+        <a href="/">console version</a>
+      )
+    }
+  </p>
+</header>
+
+<style>
+  .masthead {
+    padding-top: calc(var(--space) * 16);
+    padding-bottom: calc(var(--space) * 12);
+  }
+
+  .masthead-id {
+    display: flex;
+    align-items: center;
+    gap: calc(var(--space) * 5);
+  }
+
+  .masthead-portrait {
+    flex: none;
+    width: 96px;
+    height: 96px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--border);
+  }
+
+  .masthead h1 {
+    font-size: var(--t-4);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+
+  .masthead-title {
+    margin: calc(var(--space) * 1) 0 0 0;
+    color: var(--accent);
+    font-size: var(--t-0);
+  }
+
+  .masthead-availability {
+    margin: calc(var(--space) * 2) 0 0 0;
+    color: var(--muted);
+    font-size: var(--t--1);
+  }
+
+  .masthead-tagline {
+    font-family: var(--prose);
+    font-size: var(--t-2);
+    line-height: 1.45;
+    color: var(--muted);
+    max-width: var(--measure);
+    margin: calc(var(--space) * 6) 0 0 0;
+  }
+
+  .masthead-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: calc(var(--space) * 2) calc(var(--space) * 6);
+    margin: calc(var(--space) * 6) 0 0 0;
+    font-size: var(--t--1);
+    overflow-wrap: anywhere;
+  }
+
+  @media (max-width: 767px) {
+    .masthead {
+      padding-top: calc(var(--space) * 10);
+    }
+
+    .masthead-id {
+      gap: calc(var(--space) * 4);
+    }
+
+    .masthead-portrait {
+      width: 64px;
+      height: 64px;
+    }
+
+    .masthead h1 {
+      font-size: var(--t-3);
+    }
+
+    .masthead-tagline {
+      font-size: var(--t-1);
+    }
+  }
+</style>

@@ -137,6 +137,11 @@ svg {
   font-size: var(--t-1);
   line-height: 1.65;
   max-width: var(--measure);
+  /*
+   * The serif stack falls back to Georgia off macOS, which sets old-style
+   * figures. "2025" and "7 million" then sit low against technical copy.
+   */
+  font-variant-numeric: lining-nums;
 }
 
 .prose > * {

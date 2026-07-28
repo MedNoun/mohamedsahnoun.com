@@ -3,13 +3,14 @@
  * time, then reveals, filters and scrolls it. Everything here reads the DOM.
  */
 
-export type EntryKind = 'project' | 'experience' | 'about' | 'contact';
+export type EntryKind = 'project' | 'experience' | 'about' | 'contact' | 'lessons';
 
 export interface Entry {
   kind: EntryKind;
   id: string;
   name: string;
   hook: string;
+  lesson: string;
   domain: string;
   year: string;
   stack: string;
@@ -30,6 +31,7 @@ export function indexContent(): Entry[] {
     id: attr(el, 'id'),
     name: attr(el, 'name'),
     hook: attr(el, 'hook'),
+    lesson: attr(el, 'lesson'),
     domain: attr(el, 'domain'),
     year: attr(el, 'year'),
     stack: attr(el, 'stack'),
@@ -54,7 +56,35 @@ export function reveal(entries: Entry[], all: Entry[]) {
   }
 }
 
+/**
+ * Resolve a URL fragment to an entry. Matched on the element's own id, not the
+ * data-id, because the "who is this" section is #about while its entry id is
+ * whoami, and the fragment a visitor pastes is the one in the markup.
+ */
+export function entryByHash(hash: string, entries: Entry[]): Entry | undefined {
+  const id = hash.replace('#', '');
+  if (!id) return undefined;
+  return entries.find((entry) => entry.el.id === id || entry.id === id);
+}
+
+/** An entry's own heading: the h3 inside an article, the h2 of a section. */
+export function headingOf(entry: Entry): HTMLElement | null {
+  return entry.el.querySelector<HTMLElement>('.entry-name, h2');
+}
+
+/** How many `#### ...` sections the revealed case study has, for the status line. */
+export function sectionCount(entry: Entry): number {
+  return entry.el.querySelectorAll('.prose > h4').length;
+}
+
+/**
+ * Land the reader on the thing they asked for, and take keyboard focus with
+ * them, so the console is not the only way back into the page.
+ */
 export function scrollTo(entry: Entry) {
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  entry.el.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  const heading = headingOf(entry) ?? entry.el;
+  heading.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' });
+  // preventScroll: the scrollIntoView above already owns the scroll position.
+  heading.focus({ preventScroll: true });
 }

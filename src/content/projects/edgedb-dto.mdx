@@ -2,6 +2,12 @@
 id: edgedb-dto
 name: edgedb-dto
 hook: Code generation that gives EdgeDB object composition back, without becoming an ORM.
+result: >-
+  MIT on PyPI, past 1,000 downloads · 72 of 75 attributed commits mine · ~651 lines across 6 modules
+  · 2 releases, 2 worked examples, flake8 with 7 plugins across 3 pre-commit stages
+lesson: >-
+  The resolver runs one query per nested DTO, and a child shared by two parents runs twice. A
+  resolved-node cache keyed on object identity fixes both. There is no test suite.
 domain: Developer tooling
 year: '2024'
 stack:
@@ -18,7 +24,7 @@ order: 1
 
 #### The problem
 
-EdgeDB ships an official code generator that turns each `.edgeql` file into a standalone typed Python function. It is fast and it is correct, but it is flat. There is no way to compose queries across related object types, no validation over the inputs, and every project that uses it ends up writing the same glue between query functions and application code by hand. That glue is precisely the ergonomics an ORM would have provided. I wanted the composability back without dragging in an ORM, because the reason to use EdgeDB in the first place is that EdgeQL is better at expressing the query than an ORM's fluent API is.
+EdgeDB ships an official code generator that turns each `.edgeql` file into a standalone typed Python function. It is fast and correct. It is also flat. There is no way to compose queries across related object types, no validation over the inputs, and every project that uses it ends up writing the same glue between query functions and application code by hand. That glue is precisely the ergonomics an ORM would have provided. I wanted the composability back without dragging in an ORM, because the reason to use EdgeDB in the first place is that EdgeQL is better at expressing the query than an ORM's fluent API is.
 
 #### The constraint that made it hard
 
@@ -30,7 +36,7 @@ I built the generator as a two-stage metaprogramming pipeline, because neither s
 
 #### The decision, and why
 
-The whole design turns on one rewrite: every `uuid.UUID` field becomes `DTO | uuid.UUID`. That is one line of declarative configuration, and it is the entire reason composition works. A generated field can now hold either a resolved identifier or another unresolved DTO, which pushes the problem into the runtime where it belongs.
+The whole design turns on one rewrite: every `uuid.UUID` field becomes `DTO | uuid.UUID`. That is one line of declarative configuration, and the entire reason composition works. A generated field can now hold either a resolved identifier or another unresolved DTO, which pushes the problem into the runtime where it belongs.
 
 The runtime half is a base class implementing execution semantics. Running a DTO walks its own annotations and resolves each attribute recursively, depth first, so any attribute that is itself a DTO has its query executed first and is substituted by the returned identifier. The resolver handles nested lists, plain tuples and namedtuples, rebuilding namedtuples from their `_fields` metadata, and the whole traversal optionally runs inside a transaction so an entire object graph commits atomically. Everything else follows from configuration rather than control flow: defaulted fields reordered after required ones as the dataclass protocol demands, `default_factory` attached to collection types matched by regex, and one Jinja2 template emitting synchronous or asynchronous variants from a single code path, selected by detecting an `_async` filename suffix.
 
@@ -38,12 +44,12 @@ The runtime half is a base class implementing execution semantics. Running a DTO
 
 `edgedb-dto` is on PyPI under MIT, past 1,000 downloads, at 96% of attributed commits (72 of 75) across roughly 651 lines in 6 modules. The shipped example builds a student, an instructor and two shared courses, then persists the full graph with a single call.
 
-The release pipeline is the part I would point at second. A SemVer tag pattern gates a GitLab CI job that builds with Poetry and dual publishes to both PyPI and the GitLab package registry, then cuts a release, with credentials injected from masked variables rather than committed. Quality is enforced by a pre-commit suite spanning the commit, push and commit-message stages: black, refurb, flake8 with seven plugins including pydocstyle and bugbear, codespell, rstcheck, and a dozen hygiene hooks.
+The release pipeline is the part I would point at second. A SemVer tag pattern gates a GitLab CI job that builds with Poetry and dual publishes to both PyPI and the GitLab package registry, then cuts a release, with credentials injected from masked variables. Quality is enforced by a pre-commit suite spanning the commit, push and commit-message stages: black, refurb, flake8 with seven plugins including pydocstyle and bugbear, codespell, rstcheck, and a dozen hygiene hooks.
 
 #### What I would do differently
 
-Two things, both documented rather than discovered later.
+Two things, both documented in the repository.
 
-The resolver has an N+1 pattern, and it is a direct consequence of deliberately not being a query builder: each nested DTO executes its own query rather than being folded into one statement. The sharper version of the same fault shows up in the `linked_dtos` example, where the same two course DTOs appear in both the instructor's and the student's `courses` list. The resolver substitutes the returned identifier into the parent's field, not into the shared child, so a DTO referenced from two parents executes twice. That is harmless against the idempotent `unless conflict` upserts the examples use, but it is the same root cause, and a resolved-node cache keyed on object identity would fix both.
+The resolver has an N+1 pattern, a direct consequence of deliberately not being a query builder: each nested DTO executes its own query rather than being folded into one statement. The sharper version of the same fault shows up in the `linked_dtos` example, where the same two course DTOs appear in both the instructor's and the student's `courses` list. The resolver substitutes the returned identifier into the parent's field, not into the shared child, so a DTO referenced from two parents executes twice. That is harmless against the idempotent `unless conflict` upserts the examples use, but it is the same root cause, and a resolved-node cache keyed on object identity would fix both.
 
 The second is plainer: there is no test suite. The pre-commit config already excludes a `tests/` directory that never landed. For a library other people install, that is the most valuable thing I could add to it.

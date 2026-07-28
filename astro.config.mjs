@@ -8,6 +8,6 @@ import preact from '@astrojs/preact';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://mohamedsahnoun.dev',
+  site: 'https://mohamedsahnoun.com',
   integrations: [mdx(), sitemap(), preact()]
 });

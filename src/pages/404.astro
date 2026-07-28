@@ -3,7 +3,7 @@ import Base from '../layouts/Base.astro';
 import { site } from '../data/site';
 ---
 
-<Base title="Not found" description="That page does not exist on mohamedsahnoun.dev.">
+<Base title="Not found" description={`That page does not exist on ${site.domain}.`}>
   <main class="wrap not-found" id="content">
     <p class="echo"><span aria-hidden="true">&gt;</span> SELECT * FROM pages WHERE path = '404';</p>
     <h1>0 rows returned</h1>

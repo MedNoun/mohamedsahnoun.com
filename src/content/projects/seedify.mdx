@@ -2,6 +2,12 @@
 id: seedify
 name: seedify
 hook: BitTorrent from the bytes up, including the BEP 15 UDP announce packed by hand.
+result: >-
+  ~1,841 lines across 22 modules · 30 commits, Feb to Jun 2023, two engineers pair-programmed ·
+  rarest-first selection, endgame at 20 outstanding pieces, top-four unchoke every 30s
+lesson: >-
+  An honest leecher and a dishonest seeder: handleLeecher is stubbed and bandwidth throttling is
+  commented out. No tests, on a codebase that is mostly byte layouts and state transitions.
 domain: Distributed systems
 year: '2023'
 stack:
@@ -15,9 +21,13 @@ repo: https://github.com/MedNoun/seedify
 order: 2
 ---
 
+#### What it does
+
+It joins a real swarm, talks to trackers over both HTTP and UDP, downloads a torrent piece by piece, SHA-1 verifies every piece against the metadata, and writes the result across file boundaries at the right offsets. Roughly 1,841 lines of TypeScript across 22 modules, written with a partner over screen share between February and June 2023.
+
 #### The problem
 
-BitTorrent is the rare protocol that is fully specified, still widely deployed, and small enough that two people can implement it end to end. My partner and I wanted to know how a swarm actually works: not the summary, but the byte layouts, the state machines and the incentive mechanism. So we built a client from scratch, roughly 1,841 lines of TypeScript across 22 modules, pair-programmed over screen share from February to June 2023.
+BitTorrent is the rare protocol that is fully specified, still widely deployed, and small enough that two people can implement it end to end. We wanted to know how a swarm actually works: not the summary, but the byte layouts, the state machines and the incentive mechanism.
 
 Choosing TypeScript was deliberate. Existing clients are written in Python and C++, and we gave up that ecosystem precedent on purpose: over a notoriously fiddly binary protocol, static typing and readable asynchronous code were worth more to us than a library that already did the hard part.
 
@@ -27,7 +37,7 @@ Trackers speak two incompatible transports. HTTP announce is a percent-escaped q
 
 #### What I tried
 
-We put both transports behind one interface and let the announce state machine stay ignorant of which one it was talking to. That state machine (stopped, connecting, waiting, error) drives the whole announce lifecycle: scheduling re-announces from the interval the tracker returns, retrying with a thirty second backoff on transient failure, and shutting down cleanly when DNS fails unrecoverably rather than spinning.
+We put both transports behind one interface and let the announce state machine stay ignorant of which one it was talking to. That state machine (stopped, connecting, waiting, error) drives the whole announce lifecycle: scheduling re-announces from the interval the tracker returns, retrying with a thirty second backoff on transient failure, and shutting down cleanly when DNS fails unrecoverably.
 
 Everything before that is metadata handling. We bencode-decode the `.torrent` dictionary, re-encode the `info` sub-dictionary and SHA-1 hash it to derive the infohash that identifies the swarm, flatten multi-tier `announce-list` entries, and normalise single-file and multi-file torrents into one shape carrying per-file lengths and byte offsets, so nothing downstream has to care which kind it is. Returned peers are decoded from both the compact form (six raw bytes of IPv4 address plus a big-endian port) and the legacy dictionary form.
 
@@ -35,16 +45,16 @@ Everything before that is metadata handling. We bencode-decode the `.torrent` di
 
 The interesting decisions are in scheduling. Piece selection is rarest first, driven by per-piece availability counters maintained incrementally as peers send bitfields, announce `have`, and disconnect. When all but twenty pieces are outstanding the client flips into endgame mode and issues randomised duplicate requests to every peer holding them, which is wasteful by design: it stops one slow peer stalling the tail of the download.
 
-On the upload side we implemented tit-for-tat choking, and it is worth being precise about why it exists. It is the protocol's incentive mechanism, not a performance optimisation. Every thirty seconds the client ranks peers by transfer rate over a sliding history window, unchokes the four fastest interested ones, and adds a random optimistic unchoke so a newcomer with nothing to trade can still bootstrap.
+On the upload side we implemented tit-for-tat choking, which is the protocol's incentive mechanism. Every thirty seconds the client ranks peers by transfer rate over a sliding history window, unchokes the four fastest interested ones, and adds a random optimistic unchoke so a newcomer with nothing to trade can still bootstrap.
 
 Between the two sits the peer wire protocol: handshake construction and validation, reassembly of the raw TCP stream into length-prefixed frames through a buffered incremental parser, and the full message set (choke, unchoke, interested, not-interested, have, bitfield, request, piece, cancel, port and keep-alive). Every completed piece is SHA-1 verified against the metadata hash, with the block bitset reset and the piece re-requested on mismatch, and pieces spanning file boundaries are written across multiple descriptors at computed offsets.
 
 #### The outcome
 
-The client leeches and verifies correctly against real swarms, with a cap of thirty peer connections, sixty second keep-alives and disconnection after a hundred seconds of inactivity. The clearest payoff from working to the Open/Closed principle was the second tracker transport: adding UDP meant writing one class that satisfied an existing interface, with no change to the announce state machine at all.
+It runs with a cap of thirty peer connections, sixty second keep-alives and disconnection after a hundred seconds of inactivity. The clearest payoff from working to the Open/Closed principle was the second tracker transport: adding UDP meant writing one class that satisfied an existing interface, with no change to the announce state machine at all.
 
 #### What I would do differently
 
-The README oversells it, and that is the first thing I would fix. Bandwidth throttling is written but commented out. `handleLeecher` in the seeder is stubbed, so inbound connections are accepted but seeding never completes: the client is an honest leecher and a dishonest seeder. Both are small pieces of work that were left at the point where the interesting problems had run out.
+The README oversells it, which is the first thing I would fix. Bandwidth throttling is written but commented out. `handleLeecher` in the seeder is stubbed, so inbound connections are accepted but seeding never completes: the client is an honest leecher and a dishonest seeder. Both are small pieces of work that were left at the point where the interesting problems had run out.
 
 There is also no test suite, on a codebase that is mostly byte layouts and state transitions, which is exactly the kind of code where a test suite pays for itself. A property test over bencode round-tripping and a fixture-driven test of the 98-byte announce payload would have caught more than the manual swarm testing did.

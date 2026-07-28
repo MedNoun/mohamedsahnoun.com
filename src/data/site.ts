@@ -1,9 +1,13 @@
 export const site = {
   name: 'Mohamed Sahnoun',
   title: 'Data Engineer',
+  domain: 'mohamedsahnoun.com',
+  url: 'https://mohamedsahnoun.com',
   tagline:
     'I build data platforms on GCP: BigQuery lakehouses, dimensional models, and the data quality testing that makes them trustworthy.',
   location: 'Tunisia, working remotely',
+  // The masthead line that answers "should I contact this person".
+  availability: ['Tunisia', 'remote', 'open to data engineering roles'],
   email: 'mohammed.sahnounn@gmail.com',
   links: {
     linkedin: 'https://www.linkedin.com/in/mohamedsahnoun/',

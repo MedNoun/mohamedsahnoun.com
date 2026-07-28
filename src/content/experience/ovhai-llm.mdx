@@ -5,6 +5,12 @@ role: Data Engineer Intern
 org: OVHai LLM, Paris
 period: Feb 2024 to Jul 2024
 hook: Automated the corpus preparation behind neural machine translation models serving regulated finance.
+result: >-
+  4 containerised microservices built · 6 library modules refactored · batch-level error isolation
+  over corpora of millions of sentences · thesis defended at INSAT, 25 September 2024
+lesson: >-
+  The self-describing message envelope is unversioned, so changing its shape means deploying all
+  four services at once. A version field and tolerant readers would have cost an afternoon.
 domain: Distributed systems
 year: '2024'
 stack:
@@ -30,7 +36,7 @@ The clients are the constraint. Banking data cannot leave the premises, which ru
 
 #### What I tried
 
-I ran a formal architecture trade-off analysis rather than picking by instinct: monolith against microservices, then event-driven against message-driven. Microservices won on independent deployability, since the stages have genuinely different resource profiles, one of them needing GPUs. Message-driven won over event-driven on the specifics of the workflow: point-to-point semantics, guaranteed delivery and sequential workflow control fit an ordered pipeline, where publish and subscribe fits fire-and-forget notification, which this is not.
+I ran a formal architecture trade-off analysis: monolith against microservices, then event-driven against message-driven. Microservices won on independent deployability, since the stages have genuinely different resource profiles, one of them needing GPUs. Message-driven won over event-driven on the specifics of the workflow: point-to-point semantics, guaranteed delivery and sequential workflow control fit an ordered pipeline, where publish and subscribe fits fire-and-forget notification, which this is not.
 
 I benchmarked and justified each component the same way. ActiveMQ over RabbitMQ for its JMS foundation, multi-protocol support (AMQP, MQTT, STOMP), master and slave high availability and dual file- and database-backed persistence. Self-hosted MinIO over AWS S3 for cost, control and the on-premises data sovereignty the clients require. EdgeDB over PostgreSQL for graph-relational modelling and the expressiveness of EdgeQL. Poetry for dependency management and reproducible packaging.
 
@@ -52,6 +58,6 @@ The internship also produced an open-source spin-off: `edgedb-dto`, published to
 
 #### What I would do differently
 
-The self-describing envelope is elegant and it is also unversioned. Every service parses the same JSON shape, so changing that shape means coordinating a deployment across all four at once, which is exactly the coupling microservices were supposed to remove. A schema version field and tolerant readers would have cost an afternoon.
+The self-describing envelope is elegant. It is also unversioned. Every service parses the same JSON shape, so changing that shape means coordinating a deployment across all four at once, which is exactly the coupling microservices were supposed to remove. A schema version field and tolerant readers would have cost an afternoon.
 
 I would also have pushed harder for integration tests across the message path. Each service was tested in isolation, and the failures that actually bite in a message-driven system are the ones between services: a queue that fills, a consumer that acknowledges before it finishes, a payload that is valid to the sender and unreadable to the receiver.

@@ -19,13 +19,89 @@ const experience = await Promise.all(
     Content: (await render(entry)).Content,
   })),
 );
+
+/*
+ * The lessons table is content, so it is rendered here at build time like
+ * everything else. The console only reveals it. Work outranks side projects,
+ * so experience comes first here too.
+ */
+const lessons = [
+  ...experience.map(({ data }) => ({
+    id: data.id,
+    label: `${data.role}, ${data.org}`,
+    year: data.year,
+    lesson: data.lesson,
+  })),
+  ...projects.map(({ data }) => ({
+    id: data.id,
+    label: data.name,
+    year: data.year,
+    lesson: data.lesson,
+  })),
+];
 ---
 
 <section class="entry-group" id="about" data-entry="about" data-id="whoami" data-name="whoami">
-  <h2>Who is this</h2>
+  <h2 tabindex="-1">Who is this</h2>
   <div class="prose">
     {site.bio.map((paragraph) => <p>{paragraph}</p>)}
   </div>
+</section>
+
+<section class="entry-group" id="experience" aria-labelledby="experience-heading">
+  <h2 id="experience-heading">Experience</h2>
+  {
+    experience.map(({ data, Content }) => (
+      <article
+        class="entry"
+        id={data.id}
+        data-entry="experience"
+        data-id={data.id}
+        data-name={data.name}
+        data-hook={data.hook}
+        data-lesson={data.lesson}
+        data-domain={data.domain}
+        data-year={data.year}
+        data-role={data.role}
+        data-org={data.org}
+        data-period={data.period}
+        data-stack={data.stack.join(', ')}
+      >
+        {/* tabindex so the console can move focus here when it reveals the entry */}
+        <h3 class="entry-name" tabindex="-1">
+          {data.role}
+        </h3>
+        <p class="entry-org">
+          {data.org} <span class="entry-period">{data.period}</span>
+        </p>
+        <p class="entry-hook">{data.hook}</p>
+        <p class="entry-result">{data.result}</p>
+        <dl class="entry-meta">
+          <div>
+            <dt>Domain</dt>
+            <dd>{data.domain}</dd>
+          </div>
+          <div>
+            <dt>Stack</dt>
+            <dd>{data.stack.join(', ')}</dd>
+          </div>
+          {data.link && (
+            <div>
+              <dt>Link</dt>
+              <dd>
+                <a href={data.link} rel="noopener">
+                  {data.link.replace('https://', '')}
+                </a>
+              </dd>
+            </div>
+          )}
+        </dl>
+        <div class="prose">
+          <Content />
+        </div>
+      </article>
+    ))
+  }
 </section>
 
 <section class="entry-group" id="projects" aria-labelledby="projects-heading">
@@ -39,13 +115,17 @@ const experience = await Promise.all(
         data-id={data.id}
         data-name={data.name}
         data-hook={data.hook}
+        data-lesson={data.lesson}
         data-domain={data.domain}
         data-year={data.year}
         data-stack={data.stack.join(', ')}
         data-repo={data.repo}
       >
-        <h3 class="entry-name">{data.name}</h3>
+        <h3 class="entry-name" tabindex="-1">
+          {data.name}
+        </h3>
         <p class="entry-hook">{data.hook}</p>
+        <p class="entry-result">{data.result}</p>
         <dl class="entry-meta">
           <div>
             <dt>Domain</dt>
@@ -76,59 +156,39 @@ const experience = await Promise.all(
   }
 </section>
 
-<section class="entry-group" id="experience" aria-labelledby="experience-heading">
-  <h2 id="experience-heading">Experience</h2>
-  {
-    experience.map(({ data, Content }) => (
-      <article
-        class="entry"
-        id={data.id}
-        data-entry="experience"
-        data-id={data.id}
-        data-name={data.name}
-        data-hook={data.hook}
-        data-domain={data.domain}
-        data-year={data.year}
-        data-role={data.role}
-        data-org={data.org}
-        data-period={data.period}
-        data-stack={data.stack.join(', ')}
-      >
-        <h3 class="entry-name">{data.role}</h3>
-        <p class="entry-org">
-          {data.org} <span class="entry-period">{data.period}</span>
-        </p>
-        <p class="entry-hook">{data.hook}</p>
-        <dl class="entry-meta">
-          <div>
-            <dt>Domain</dt>
-            <dd>{data.domain}</dd>
-          </div>
-          <div>
-            <dt>Stack</dt>
-            <dd>{data.stack.join(', ')}</dd>
-          </div>
-          {data.link && (
-            <div>
-              <dt>Link</dt>
-              <dd>
-                <a href={data.link} rel="noopener">
-                  {data.link.replace('https://', '')}
-                </a>
-              </dd>
-            </div>
-          )}
-        </dl>
-        <div class="prose">
-          <Content />
-        </div>
-      </article>
-    ))
-  }
+<section class="entry-group" id="lessons" data-entry="lessons" data-id="lessons" data-name="lessons">
+  <h2 tabindex="-1">What I would do differently</h2>
+  <p class="lessons-lead">
+    Every entry on this page ends with its own faults. This is all of them in one place.
+  </p>
+  <div class="lessons-scroll">
+    <table class="lessons">
+      <thead>
+        <tr>
+          <th scope="col">Entry</th>
+          <th scope="col">Year</th>
+          <th scope="col">What I would do differently</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          lessons.map((row) => (
+            <tr>
+              <th scope="row">
+                <a href={`#${row.id}`}>{row.label}</a>
+              </th>
+              <td>{row.year}</td>
+              <td>{row.lesson}</td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
 </section>
 
 <section class="entry-group" id="contact" data-entry="contact" data-id="contact" data-name="contact">
-  <h2>Get in touch</h2>
+  <h2 tabindex="-1">Get in touch</h2>
   <ul class="contact-list">
     <li><span>email</span> <a href={`mailto:${site.email}`}>{site.email}</a></li>
     <li>
@@ -158,6 +218,7 @@ const experience = await Promise.all(
     padding-bottom: calc(var(--space) * 2);
     border-bottom: 1px solid var(--border);
     margin: 0 0 calc(var(--space) * 8) 0;
+    scroll-margin-top: calc(var(--space) * 6);
   }
 
   .entry {
@@ -171,6 +232,7 @@ const experience = await Promise.all(
     line-height: 1.2;
     margin: 0;
     color: var(--text);
+    scroll-margin-top: calc(var(--space) * 6);
   }
 
   .entry-org {
@@ -191,6 +253,20 @@ const experience = await Promise.all(
     color: var(--muted);
     max-width: var(--measure);
     margin: calc(var(--space) * 3) 0 0 0;
+  }
+
+  /* The skim layer: the numbers, before the prose, in the console's own face. */
+  .entry-result {
+    margin: calc(var(--space) * 5) 0 0 0;
+    padding: calc(var(--space) * 3) calc(var(--space) * 4);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 2px solid var(--accent);
+    border-radius: var(--radius);
+    font-size: var(--t--2);
+    line-height: 1.7;
+    color: var(--text);
+    max-width: var(--measure);
   }
 
   .entry-meta {
@@ -222,6 +298,60 @@ const experience = await Promise.all(
   .entry-meta dd {
     margin: 0;
     overflow-wrap: anywhere;
+  }
+
+  .lessons-lead {
+    font-family: var(--prose);
+    font-size: var(--t-1);
+    color: var(--muted);
+    max-width: var(--measure);
+    margin: 0 0 calc(var(--space) * 6) 0;
+  }
+
+  /* A wide table must scroll inside itself, never scroll the page sideways. */
+  .lessons-scroll {
+    overflow-x: auto;
+  }
+
+  .lessons {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--t--2);
+    text-align: left;
+  }
+
+  .lessons th,
+  .lessons td {
+    vertical-align: top;
+    padding: calc(var(--space) * 3) calc(var(--space) * 4) calc(var(--space) * 3) 0;
+    border-bottom: 1px solid var(--border);
+    font-weight: 400;
+  }
+
+  .lessons thead th {
+    color: var(--muted);
+    text-transform: lowercase;
+    white-space: nowrap;
+  }
+
+  .lessons tbody th {
+    color: var(--accent);
+    min-width: 20ch;
+  }
+
+  .lessons tbody th a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .lessons tbody th a:hover {
+    text-decoration: underline;
+  }
+
+  .lessons td:last-child {
+    color: var(--muted);
+    line-height: 1.6;
+    min-width: 44ch;
   }
 
   .contact-list {

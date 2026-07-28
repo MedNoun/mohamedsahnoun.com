@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'preact/hooks';
-import { indexContent, reveal, scrollTo, type Entry } from './console/dom';
-import { chips, completions, match, normalise } from './console/matcher';
+import {
+  entryByHash,
+  indexContent,
+  reveal,
+  scrollTo,
+  sectionCount,
+  type Entry,
+} from './console/dom';
+import { chips, completions, filterChips, match, normalise, type Table } from './console/matcher';
+import { site } from '../data/site';
 import './console/console.css';
 
 type Block =
@@ -13,6 +21,14 @@ type Block =
       heading: string;
       columns: string[];
       rows: { id: string; cells: string[] }[];
+      empty?: string;
+    }
+  | {
+      key: number;
+      kind: 'table';
+      heading: string;
+      columns: string[];
+      rows: string[][];
     }
   | {
       key: number;
@@ -21,7 +37,7 @@ type Block =
       items: { label: string; text: string; href: string; download?: boolean }[];
     };
 
-const AUTO_QUERY = 'SELECT * FROM projects;';
+const AUTO_QUERY = 'SELECT * FROM experience;';
 const VIEW_KEY = 'msd-view';
 
 const prefersReducedMotion = () =>
@@ -34,6 +50,8 @@ export default function Console() {
   const [inputOpen, setInputOpen] = useState(false);
   const [value, setValue] = useState('');
   const [blocks, setBlocks] = useState<Block[]>([]);
+  const [status, setStatus] = useState('');
+  const [openTable, setOpenTable] = useState<Table | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
 
@@ -42,6 +60,8 @@ export default function Console() {
   const outputEl = useRef<HTMLDivElement | null>(null);
   const blockKey = useRef(0);
   const typing = useRef<number | null>(null);
+  // Our own hash writes must not be mistaken for the visitor pressing Back.
+  const ownHash = useRef<string>('');
 
   const nextKey = () => ++blockKey.current;
 
@@ -52,56 +72,73 @@ export default function Console() {
 
   const find = useCallback((id: string) => entries.current.find((entry) => entry.id === id), []);
 
-  const show = useCallback((next: Block[]) => {
-    setBlocks(next);
-    requestAnimationFrame(() => {
-      if (outputEl.current) outputEl.current.scrollTop = outputEl.current.scrollHeight;
-    });
-  }, []);
-
-  /** Reader view: every entry visible, console collapsed to its chrome. */
-  const applyView = useCallback(
-    (next: 'console' | 'reader') => {
-      setView(next);
-      document.body.dataset.view = next;
-      try {
-        localStorage.setItem(VIEW_KEY, next);
-      } catch {
-        /* private mode, the view simply will not persist */
-      }
-      if (next === 'reader') reveal(entries.current, entries.current);
+  /**
+   * Render, then settle. The scroll runs after the new blocks have laid out,
+   * otherwise the console resizes underneath an in-flight smooth scroll and
+   * the page lands mid-paragraph.
+   */
+  const show = useCallback(
+    (next: Block[] | ((prev: Block[]) => Block[]), settle?: () => void) => {
+      setBlocks(next);
+      requestAnimationFrame(() => {
+        if (outputEl.current) outputEl.current.scrollTop = outputEl.current.scrollHeight;
+        settle?.();
+      });
     },
     [],
   );
 
-  const listBlock = useCallback(
-    (kind: 'project' | 'experience'): Block => {
-      // A result row is a summary. The full stack is in the case study.
-      const shortStack = (stack: string) => {
-        const items = stack.split(', ');
-        return items.length > 3 ? `${items.slice(0, 3).join(', ')} +${items.length - 3}` : stack;
-      };
+  /** Keep the URL pointing at whatever is on screen, so it can be pasted. */
+  const syncHash = useCallback((id: string | null) => {
+    const next = id ? `#${id}` : window.location.pathname;
+    ownHash.current = id ? `#${id}` : '';
+    // window.history, not the query history held in state above.
+    window.history.replaceState(null, '', next);
+  }, []);
 
-      const rows = byKind(kind).map((entry) => ({
+  /** Reader view: every entry visible, console collapsed to a single line. */
+  const applyView = useCallback((next: 'console' | 'reader') => {
+    setView(next);
+    document.body.dataset.view = next;
+    try {
+      localStorage.setItem(VIEW_KEY, next);
+    } catch {
+      /* private mode, the view simply will not persist */
+    }
+    if (next === 'reader') reveal(entries.current, entries.current);
+  }, []);
+
+  // A result row is a summary. The full stack is in the case study.
+  const shortStack = (stack: string) => {
+    const items = stack.split(', ');
+    return items.length > 3 ? `${items.slice(0, 3).join(', ')} +${items.length - 3}` : stack;
+  };
+
+  const rowsFor = useCallback(
+    (kind: 'project' | 'experience', pool?: Entry[]) =>
+      (pool ?? byKind(kind)).map((entry) => ({
         id: entry.id,
         cells:
           kind === 'project'
             ? [entry.name, entry.domain, shortStack(entry.stack), entry.year]
             : [entry.role, entry.org, shortStack(entry.stack), entry.period],
-      }));
-
-      return {
-        key: nextKey(),
-        kind: 'result',
-        heading: kind === 'project' ? 'projects' : 'experience',
-        columns:
-          kind === 'project'
-            ? ['name', 'domain', 'stack', 'year']
-            : ['role', 'organisation', 'stack', 'period'],
-        rows,
-      };
-    },
+      })),
     [byKind],
+  );
+
+  const listBlock = useCallback(
+    (kind: 'project' | 'experience', pool?: Entry[], empty?: string): Block => ({
+      key: nextKey(),
+      kind: 'result',
+      heading: kind === 'project' ? 'projects' : 'experience',
+      columns:
+        kind === 'project'
+          ? ['name', 'domain', 'stack', 'year']
+          : ['role', 'organisation', 'stack', 'period'],
+      rows: rowsFor(kind, pool),
+      empty,
+    }),
+    [rowsFor],
   );
 
   const run = useCallback(
@@ -113,11 +150,16 @@ export default function Console() {
       if (view === 'reader' && intent.kind !== 'everything') applyView('console');
 
       switch (intent.kind) {
+        case 'experience':
         case 'projects': {
+          const kind = intent.kind === 'projects' ? 'project' : 'experience';
           reveal([], all);
+          setOpenTable(null);
+          syncHash(null);
+          setStatus(`${byKind(kind).length} rows.`);
           show([
             echo,
-            listBlock('project'),
+            listBlock(kind),
             {
               key: nextKey(),
               kind: 'note',
@@ -127,17 +169,79 @@ export default function Console() {
           break;
         }
 
-        case 'experience': {
+        case 'filter': {
+          const kind = intent.table === 'projects' ? 'project' : 'experience';
+          const needle = intent.value.toLowerCase();
+          const pool = byKind(kind).filter((entry) =>
+            (intent.field === 'stack' ? entry.stack : entry.domain).toLowerCase().includes(needle),
+          );
+
           reveal([], all);
+          setOpenTable(null);
+          syncHash(null);
+          setStatus(`${pool.length} of ${byKind(kind).length} rows match.`);
           show([
             echo,
-            listBlock('experience'),
+            listBlock(
+              kind,
+              pool,
+              `No ${intent.table} match ${intent.field} '${intent.value}'. That is an honest zero, not a bug.`,
+            ),
             {
               key: nextKey(),
               kind: 'note',
-              text: 'Select a row to read the full case study.',
+              text: `${pool.length} of ${byKind(kind).length} ${intent.table} match ${intent.field} '${intent.value}'.`,
             },
           ]);
+          break;
+        }
+
+        case 'aggregate': {
+          const kind = intent.table === 'projects' ? 'project' : 'experience';
+          const counts = new Map<string, number>();
+          for (const entry of byKind(kind)) {
+            const key = intent.field === 'year' ? entry.year : entry.domain;
+            counts.set(key, (counts.get(key) ?? 0) + 1);
+          }
+          const rows = [...counts.entries()]
+            .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+            .map(([key, count]) => [key, String(count)]);
+
+          reveal([], all);
+          setOpenTable(null);
+          syncHash(null);
+          setStatus(`${rows.length} groups.`);
+          show([
+            echo,
+            {
+              key: nextKey(),
+              kind: 'table',
+              heading: `${intent.field}, count(*)`,
+              columns: [intent.field, 'count'],
+              rows,
+            },
+          ]);
+          break;
+        }
+
+        case 'lessons': {
+          const entry = find('lessons');
+          reveal(entry ? [entry] : [], all);
+          setOpenTable(null);
+          syncHash('lessons');
+          setStatus(`Lessons table opened, ${byKind('project').length + byKind('experience').length} rows.`);
+          show(
+            [
+              echo,
+              {
+                key: nextKey(),
+                kind: 'note',
+                lead: 'lessons',
+                text: 'Every entry on this page ends with its own faults. The table below is all of them at once.',
+              },
+            ],
+            () => entry && scrollTo(entry),
+          );
           break;
         }
 
@@ -145,30 +249,45 @@ export default function Console() {
           const entry = find(intent.id);
           if (!entry) break;
           reveal([entry], all);
-          show([
-            echo,
-            {
-              key: nextKey(),
-              kind: 'note',
-              lead: entry.name,
-              text: `${entry.hook} Full case study below.`,
-            },
-          ]);
-          scrollTo(entry);
+          setOpenTable(entry.kind === 'project' ? 'projects' : 'experience');
+          syncHash(entry.id);
+          setStatus(`${entry.name} opened, ${sectionCount(entry)} sections.`);
+          // Keep the table you came from, so opening a row is not a dead end.
+          show(
+            (prev) => [
+              ...prev.filter((block) => block.kind === 'result'),
+              echo,
+              {
+                key: nextKey(),
+                kind: 'note',
+                lead: entry.name,
+                text: entry.hook,
+              },
+            ],
+            () => scrollTo(entry),
+          );
           break;
         }
 
         case 'about': {
           const entry = find('whoami');
           reveal(entry ? [entry] : [], all);
-          show([echo, { key: nextKey(), kind: 'note', lead: 'whoami', text: 'Below the console.' }]);
-          if (entry) scrollTo(entry);
+          setOpenTable(null);
+          syncHash('about');
+          setStatus('About opened.');
+          show(
+            [echo, { key: nextKey(), kind: 'note', lead: 'whoami', text: 'Below the console.' }],
+            () => entry && scrollTo(entry),
+          );
           break;
         }
 
         case 'contact': {
           const entry = find('contact');
           reveal(entry ? [entry] : [], all);
+          setOpenTable(null);
+          syncHash('contact');
+          setStatus('Contact details listed.');
           show([
             echo,
             {
@@ -176,23 +295,10 @@ export default function Console() {
               kind: 'links',
               heading: 'contact',
               items: [
-                {
-                  label: 'email',
-                  text: 'mohammed.sahnounn@gmail.com',
-                  href: 'mailto:mohammed.sahnounn@gmail.com',
-                },
-                {
-                  label: 'linkedin',
-                  text: 'in/mohamedsahnoun',
-                  href: 'https://www.linkedin.com/in/mohamedsahnoun/',
-                },
-                { label: 'github', text: 'github.com/MedNoun', href: 'https://github.com/MedNoun' },
-                {
-                  label: 'cv',
-                  text: 'mohamed-sahnoun-cv-en.pdf',
-                  href: '/mohamed-sahnoun-cv-en.pdf',
-                  download: true,
-                },
+                { label: 'email', text: site.email, href: `mailto:${site.email}` },
+                { label: 'linkedin', text: 'in/mohamedsahnoun', href: site.links.linkedin },
+                { label: 'github', text: 'github.com/MedNoun', href: site.links.github },
+                { label: 'cv', text: site.cv.slice(1), href: site.cv, download: true },
               ],
             },
           ]);
@@ -202,6 +308,9 @@ export default function Console() {
         case 'cv': {
           const entry = find('contact');
           reveal(entry ? [entry] : [], all);
+          setOpenTable(null);
+          syncHash('contact');
+          setStatus('CV download listed.');
           show([
             echo,
             {
@@ -209,12 +318,7 @@ export default function Console() {
               kind: 'links',
               heading: 'cv',
               items: [
-                {
-                  label: 'download',
-                  text: 'mohamed-sahnoun-cv-en.pdf',
-                  href: '/mohamed-sahnoun-cv-en.pdf',
-                  download: true,
-                },
+                { label: 'download', text: site.cv.slice(1), href: site.cv, download: true },
                 { label: 'plain text', text: 'the whole site as a document', href: '/plain/' },
               ],
             },
@@ -224,12 +328,15 @@ export default function Console() {
 
         case 'everything': {
           applyView('reader');
+          setOpenTable(null);
+          syncHash(null);
+          setStatus('Reader view. Every entry is on the page.');
           show([
             echo,
             {
               key: nextKey(),
               kind: 'note',
-              text: 'Reader view. Everything is below, in order. Switch back with the button above.',
+              text: 'Reader view. Everything is below, in order.',
             },
           ]);
           break;
@@ -237,6 +344,9 @@ export default function Console() {
 
         case 'unknown': {
           reveal([], all);
+          setOpenTable(null);
+          syncHash(null);
+          setStatus('No match.');
           show([
             echo,
             {
@@ -245,7 +355,7 @@ export default function Console() {
               text: 'I did not recognise that, but I probably know the answer.',
               suggestion: intent.suggestion,
             },
-            listBlock('project'),
+            listBlock('experience'),
           ]);
           break;
         }
@@ -257,7 +367,7 @@ export default function Console() {
       }
       setHistoryIndex(-1);
     },
-    [applyView, find, listBlock, show, view],
+    [applyView, byKind, find, listBlock, show, syncHash, view],
   );
 
   const submit = useCallback(
@@ -293,6 +403,17 @@ export default function Console() {
     onChange(media);
     media.addEventListener('change', onChange);
 
+    // Someone was sent a link to one case study. Open that, not the front page.
+    const linked = entryByHash(window.location.hash, entries.current);
+
+    // Back and forward should move between entries, not just move the scrollbar.
+    const onHashChange = () => {
+      if (window.location.hash === ownHash.current) return;
+      const target = entryByHash(window.location.hash, entries.current);
+      if (target) run(`DESCRIBE ${target.id};`);
+    };
+    window.addEventListener('hashchange', onHashChange);
+
     let stored: string | null = null;
     try {
       stored = localStorage.getItem(VIEW_KEY);
@@ -302,7 +423,7 @@ export default function Console() {
 
     setMounted(true);
 
-    if (stored === 'reader') {
+    if (stored === 'reader' && !linked) {
       applyView('reader');
       setBlocks([
         {
@@ -313,11 +434,15 @@ export default function Console() {
       ]);
     } else {
       document.body.dataset.view = 'console';
-      // Never an empty prompt: type the first query, then run it.
-      if (prefersReducedMotion()) {
+      if (linked) {
+        const query = `DESCRIBE ${linked.id};`;
+        setValue(query);
+        run(query);
+      } else if (prefersReducedMotion()) {
         setValue(AUTO_QUERY);
         run(AUTO_QUERY);
       } else {
+        // Never an empty prompt: type the first query, then run it.
         let i = 0;
         typing.current = window.setInterval(() => {
           i += 1;
@@ -332,6 +457,7 @@ export default function Console() {
 
     return () => {
       media.removeEventListener('change', onChange);
+      window.removeEventListener('hashchange', onHashChange);
       cancelTyping();
     };
     // Runs once: the DOM index and the opening query are mount-time concerns.
@@ -390,15 +516,31 @@ export default function Console() {
     return (
       <div class="console">
         <div class="console-chrome">
-          <span class="console-title">mohamedsahnoun.dev query console</span>
-          <a class="console-btn" href="/plain/">Plain text version</a>
+          <span class="console-title">{site.domain} query console</span>
         </div>
         <div class="console-fallback">
-          <a class="console-btn" href="#about">Who is this?</a>
+          <a class="console-btn" href="#experience">Experience</a>
           <a class="console-btn" href="#projects">Projects</a>
-          <a class="console-btn" href="#experience">Work history</a>
-          <a class="console-btn" href="#contact">Get in touch</a>
-          <a class="console-btn" href="/mohamed-sahnoun-cv-en.pdf" download>Download CV</a>
+          <a class="console-btn" href="#lessons">Lessons</a>
+          <a class="console-btn" href="#about">About</a>
+          <a class="console-btn" href="#contact">Contact</a>
+          <a class="console-btn" href={site.cv} download>CV</a>
+        </div>
+      </div>
+    );
+  }
+
+  if (view === 'reader') {
+    // Reader view asked for the page, not the console. Get out of the way.
+    return (
+      <div class="console is-collapsed">
+        <div class="console-chrome">
+          <span class="console-title">
+            <span class="caret" aria-hidden="true">&gt;</span> reader view
+          </span>
+          <button type="button" class="console-btn" onClick={() => applyView('console')}>
+            Restore console
+          </button>
         </div>
       </div>
     );
@@ -409,28 +551,31 @@ export default function Console() {
   return (
     <div class="console">
       <div class="console-chrome">
-        <span class="console-title">mohamedsahnoun.dev query console</span>
-        <button
-          type="button"
-          class="console-btn"
-          aria-pressed={view === 'reader'}
-          onClick={() => (view === 'reader' ? applyView('console') : run('reader view'))}
-        >
+        <span class="console-title">{site.domain} query console</span>
+        {openTable ? (
+          <button
+            type="button"
+            class="console-btn"
+            onClick={() => submit(`SELECT * FROM ${openTable};`)}
+          >
+            &#8592; all {openTable}
+          </button>
+        ) : null}
+        <button type="button" class="console-btn" onClick={() => run('reader view')}>
           Reader view
         </button>
-        <a class="console-btn" href="/plain/">Plain text version</a>
       </div>
 
       <div class="console-body">
-        {/* tabindex so the scrollable log is reachable by keyboard on its own */}
-        <div
-          class="console-output"
-          ref={outputEl}
-          tabIndex={0}
-          role="log"
-          aria-live="polite"
-          aria-atomic="false"
-        >
+        {/* The live region carries the status line only, never a case study. */}
+        <p class="visually-hidden" role="status" aria-live="polite">{status}</p>
+
+        {/*
+          tabindex so the scrollable log is reachable by keyboard on its own.
+          Deliberately not a live region: role="log" would announce whole result
+          tables. The status line above carries the announcement instead.
+        */}
+        <div class="console-output" ref={outputEl} tabIndex={0} aria-label="Query results">
           {blocks.map((block) => {
             if (block.kind === 'echo') {
               return (
@@ -480,32 +625,55 @@ export default function Console() {
               );
             }
 
+            if (block.kind === 'table') {
+              return (
+                <div key={block.key}>
+                  <p class="result-heading">{block.heading}</p>
+                  <ul class="result-rows">
+                    {block.rows.map((row) => (
+                      <li key={row[0]}>
+                        <span class="result-row is-static">
+                          <span class="cell-name">{row[0]}</span>
+                          <span class="cell-count">{row[1]}</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  <p class="result-count">{block.rows.length} groups.</p>
+                </div>
+              );
+            }
+
             return (
               <div key={block.key}>
                 <p class="result-heading">{block.heading}</p>
-                <ul class="result-rows">
-                  {block.rows.map((row) => (
-                    <li key={row.id}>
-                      <button
-                        type="button"
-                        class="result-row"
-                        onClick={() => submit(`DESCRIBE ${row.id};`)}
-                      >
-                        {row.cells.map((cell, i) => (
-                          <span key={i} class={i === 0 ? 'cell-name' : 'cell-muted'}>
-                            {i === 0 ? null : (
-                              <span class="cell-label">{block.columns[i]}:</span>
-                            )}
-                            {cell}
-                          </span>
-                        ))}
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                <p class="result-count">
-                  {block.rows.length} rows. Select one to open it.
-                </p>
+                {block.rows.length ? (
+                  <>
+                    <ul class="result-rows">
+                      {block.rows.map((row) => (
+                        <li key={row.id}>
+                          <button
+                            type="button"
+                            class="result-row"
+                            onClick={() => submit(`DESCRIBE ${row.id};`)}
+                          >
+                            {row.cells.map((cell, i) => (
+                              <span key={i} class={i === 0 ? 'cell-name' : 'cell-muted'}>
+                                {i === 0 ? null : (
+                                  <span class="cell-label">{block.columns[i]}:</span>
+                                )}
+                                {cell}
+                              </span>
+                            ))}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <p class="result-count">{block.rows.length} rows. Select one to open it.</p>
+                  </>
+                ) : (
+                  <p class="result-count">{block.empty ?? '0 rows.'}</p>
+                )}
               </div>
             );
           })}
@@ -526,7 +694,7 @@ export default function Console() {
               autocomplete="off"
               autocapitalize="off"
               spellcheck={false}
-              placeholder="SELECT * FROM projects;"
+              placeholder="SELECT * FROM experience;"
               onInput={(event) => {
                 cancelTyping();
                 setValue(event.currentTarget.value);
@@ -556,12 +724,23 @@ export default function Console() {
               {chip.label}
             </button>
           ))}
+          {filterChips.map((chip) => (
+            <button
+              type="button"
+              class="chip is-filter"
+              key={chip.label}
+              onClick={() => runChip(chip.query)}
+            >
+              {chip.label}
+            </button>
+          ))}
         </div>
 
         {!narrow ? (
           <p class="console-hint">
-            Up and down arrows walk your history. Tab completes table and project names. Plain English
-            works too.
+            Up and down arrows walk your history. Tab completes table and project names. Filters and
+            counts work: <code>WHERE stack CONTAINS 'Python'</code>, <code>GROUP BY domain</code>. So
+            does plain English.
           </p>
         ) : null}
       </div>

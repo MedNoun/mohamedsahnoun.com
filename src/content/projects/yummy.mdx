@@ -2,6 +2,12 @@
 id: yummy
 name: yummy
 hook: A till that keeps taking orders when the internet drops.
+result: >-
+  ~2,050 lines, 30 of 30 commits mine · 5 entities, history paginated 10 records at a time · Dec 2022
+  to Apr 2023 · context isolation on, Node integration off
+lesson: >-
+  admin.guard.ts returns true unconditionally, printing and stats are empty classes, synchronisation
+  is modelled but not built, and the preload bridge exposes generic channels instead of an allowlist.
 domain: Desktop and offline-first
 year: '2023'
 stack:
@@ -27,11 +33,11 @@ Owning your data locally in Electron pulls in a security problem immediately. Th
 
 I embedded SQLite in the Electron main process through TypeORM, initialising the data source against a file under the OS application-data directory and registering a repository per entity in a lookup map. A preload script installs a context bridge, and an Angular store service wraps that bridge so components call ordinary typed methods while the main process performs the actual repository work. The renderer never touches Node, and the UI code does not read as though anything unusual is happening.
 
-The domain is five entities (users, categories, products, purchases and bills) over a base entity carrying an auto-increment key, a creation timestamp, a soft-delete column and a synchronisation flag. Cascading relations link categories to products and bills to their purchase lines. Deletes are soft throughout, and that is a deliberate data-modelling decision rather than caution: a bill from March references a product that was removed in April, and the receipt still has to render correctly a year later.
+The domain is five entities (users, categories, products, purchases and bills) over a base entity carrying an auto-increment key, a creation timestamp, a soft-delete column and a synchronisation flag. Cascading relations link categories to products and bills to their purchase lines. Deletes are soft throughout, which is a data-modelling decision: a bill from March references a product that was removed in April, and the receipt still has to render correctly a year later.
 
 #### The decision, and why
 
-The authentication design is where offline-first stopped being a slogan. Credentials are verified locally against bcrypt hashes with per-user salts, so a server signing in to start a shift has no network dependency at all. Administrators additionally validate against a remote API, which reintroduces exactly the failure I was trying to avoid, so I cache the returned JWT locally and short-circuit the remote round trip whenever a cached token is still unexpired, checking expiry client side rather than assuming the server is reachable. Admin login degrades instead of failing.
+The authentication design is where offline-first stopped being a slogan. Credentials are verified locally against bcrypt hashes with per-user salts, so a server signing in to start a shift has no network dependency at all. Administrators additionally validate against a remote API, which reintroduces exactly the failure I was trying to avoid, so I cache the returned JWT locally and short-circuit the remote round trip whenever a cached token is still unexpired, checking expiry client side. Admin login degrades instead of failing.
 
 The billing workflow keeps the active bill in a service that publishes state through an RxJS replay subject, so components stay synchronised without prop drilling: adding a product either creates a purchase line or increments the quantity of an existing one, removing decrements and deletes at zero, and closing a bill persists it with the current user attached and rolls a fresh one. History is browsable through a lazily paginated cursor fetching ten records at a time, newest first, scoped to the logged-in user, eager loading each bill's purchases and their products and including soft-deleted rows so old receipts still render.
 
@@ -41,10 +47,10 @@ Route guards and resolvers gate access and prefetch data across lazily loaded fe
 
 The core loop works and it works offline: sign in, build a bill, close it, browse history, all against local SQLite with no server in the path. The Electron security posture is right where it counts, with context isolation enabled and Node integration disabled.
 
-#### What I would do differently
+#### Known limitations
 
-The README claims more than the code delivers, and I would either build the rest or cut the list. Printing and stats are empty classes. The `stats` IPC handler builds a TypeORM query builder and never calls `.getRawMany()`, so it returns the builder rather than any data. Synchronisation is modelled, not built: the `synced` flag and the remote API exist, but there is no reconciliation engine behind them. And `admin.guard.ts` returns `true` unconditionally, which means every route it is supposed to protect is open.
+This is a 2023 learning build. The README claims more than the code delivers, and I would either build the rest or cut the list. Printing and stats are empty classes. The `stats` IPC handler builds a TypeORM query builder and never calls `.getRawMany()`, so it returns the builder and never the rows. Synchronisation is modelled, not built: the `synced` flag and the remote API exist, with no reconciliation engine behind them. And `admin.guard.ts` returns `true` unconditionally, which means every route it is supposed to protect is open.
 
-Technically, the preload bridge is the thing I would change first. It exposes generic `send`, `invoke` and `on` for any channel name, which reopens the attack surface context isolation exists to close. The fix is a named channel allowlist, and it is a small change: the hard part, keeping Node out of the renderer, is already done.
+Technically, the preload bridge is the thing I would change first. It exposes generic `send`, `invoke` and `on` for any channel name, which reopens the attack surface context isolation exists to close. The fix is a named channel allowlist, a small change: the hard part, keeping Node out of the renderer, is already done.
 
 Two smaller ones. `copyFile` writes into the application path, which is read-only inside a packaged asar bundle, so it works in development and breaks once shipped; it should target the user-data directory. And `synchronize: true` on TypeORM is fine while developing and will silently alter schemas in production, where real migrations are the answer.

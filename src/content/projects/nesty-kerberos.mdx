@@ -2,6 +2,12 @@
 id: nesty-kerberos
 name: Nesty-kerberos
 hook: The Kerberos three-legged ticket flow implemented properly, nested encryption included.
+result: >-
+  ~1,433 lines across 2 NestJS applications · 9 of 10 commits mine · 2 realms, 256-bit session keys,
+  120s authenticator skew, 2h to 10h lifetime clamp, MODP group 15
+lesson: >-
+  A 2023 learning build with real faults: passwords stored raw instead of derived through string2key,
+  unauthenticated AES-256-CBC, a debug leak handing the client plaintext, and committed secrets.
 domain: Security
 year: '2023'
 stack:
@@ -21,7 +27,7 @@ Almost every write-up of Kerberos stops at the diagram: client, Key Distribution
 
 #### The constraint that made it hard
 
-Nested encryption is a cross-cutting concern that touches every endpoint, and it is asymmetric. On the way in, the server has to decrypt a ticket-granting ticket under the TGS's own long-term key, pull the session key out of the decrypted ticket, and only then use that session key to decrypt the client's authenticator. On the way out it has to encrypt two different payloads under two different keys for two different readers. Writing that inline in each handler would have meant repeating the trickiest code in the system in every place it was needed, and getting one ordering wrong silently produces a system that appears to work while proving nothing.
+Nested encryption is a cross-cutting concern that touches every endpoint, and an asymmetric one. On the way in, the server has to decrypt a ticket-granting ticket under the TGS's own long-term key, pull the session key out of the decrypted ticket, and only then use that session key to decrypt the client's authenticator. On the way out it has to encrypt two different payloads under two different keys for two different readers. Writing that inline in each handler would have meant repeating the trickiest code in the system in every place it was needed, and getting one ordering wrong silently produces a system that appears to work while proving nothing.
 
 #### What I tried
 
@@ -33,24 +39,22 @@ Registration happens before any of that, and it has the same requirement: no cre
 
 #### The decision, and why
 
-I decided to enforce the protocol's security properties explicitly rather than assume the encryption implied them, because it does not. The TGS rejects a ticket presented from an IP other than the one it was issued to, rejects a mismatch between the username inside the ticket and the one in the authenticator, rejects expired tickets, and rejects authenticators whose timestamp skew from the ticket exceeds two minutes. The Authentication Service looks up client and service principal keys from a Redis-backed keytab and clamps the negotiated ticket lifetime between per-realm bounds of two to ten hours.
+Encryption on its own does not imply the protocol's security properties, so I enforce each of them explicitly. The TGS rejects a ticket presented from an IP other than the one it was issued to, rejects a mismatch between the username inside the ticket and the one in the authenticator, rejects expired tickets, and rejects authenticators whose timestamp skew from the ticket exceeds two minutes. The Authentication Service looks up client and service principal keys from a Redis-backed keytab and clamps the negotiated ticket lifetime between per-realm bounds of two to ten hours.
 
 Replay protection is the piece I am happiest with, because the data store does the work. A Redis entry keyed on principal, username and realm has its TTL set to the ticket's remaining lifetime, so a captured authenticator cannot be reused inside exactly the window in which it would still be valid, and the entry expires itself the moment it stops mattering. The application service's ticket manager mirrors the same validation for the final service-ticket leg.
 
-Multi-tenancy is real rather than nominal: every principal, session key, replay entry and lifetime policy is namespaced by realm, and the configuration ships two realms to demonstrate the isolation.
+Multi-tenancy runs all the way down: every principal, session key, replay entry and lifetime policy is namespaced by realm, and the configuration ships two realms to demonstrate the isolation.
 
 #### The outcome
 
 The full three-legged flow works end to end across both services: register, authenticate, obtain a ticket-granting ticket, exchange it for a service ticket, present that ticket to an application service that validates it independently. Underneath sits a crypto service wrapping AES-256-CBC with a random per-message initialisation vector, SHA-256 hashing and secure key generation.
 
-#### What I would do differently
+#### Known limitations
 
-This one has real faults and I would rather name them than have someone find them.
+This is a 2023 learning build, written to understand the protocol, and it has real faults. I would rather name them than have someone find them.
 
-Passwords are stored raw. `UserService.create` decrypts the password and writes it into both Redis and Postgres. Real Kerberos derives a long-term key from the password through a `string2key` function and never keeps the password at all, and that is what I would do now: derive with Argon2 or PBKDF2, then discard.
-
-AES-256-CBC is unauthenticated, so ciphertexts are malleable and an attacker can flip bits undetected. AES-256-GCM, or encrypt-then-MAC with HMAC-SHA256, is the fix.
-
-The interceptor still returns `dec_1` and `dec_2`, the decrypted ticket and challenge, alongside the encrypted response. It is debug output, but as written it hands the client plaintext it should never see, which defeats the encryption entirely. It should be deleted before this is used for anything.
-
-Secrets are committed, including `.env` files and a hard-coded service key in `realms.ts`. And the test suite is scaffolded but empty, which for a security protocol is the sharpest gap of all: the tests are the argument that the implementation is correct.
+- **Passwords are stored raw.** `UserService.create` decrypts the password and writes it into both Redis and Postgres. Real Kerberos derives a long-term key through a `string2key` function and never keeps the password at all. I would derive with Argon2 or PBKDF2, then discard.
+- **AES-256-CBC is unauthenticated**, so ciphertexts are malleable and an attacker can flip bits undetected. AES-256-GCM, or encrypt-then-MAC with HMAC-SHA256, is the fix.
+- **The interceptor leaks plaintext.** It returns `dec_1` and `dec_2`, the decrypted ticket and challenge, alongside the encrypted response. Debug output as written, and it hands the client plaintext it should never see, which defeats the encryption entirely. Delete before this is used for anything.
+- **Secrets are committed**, including `.env` files and a hard-coded service key in `realms.ts`.
+- **The test suite is scaffolded and empty.** For a security protocol that is the sharpest gap of all: the tests are the argument that the implementation is correct.

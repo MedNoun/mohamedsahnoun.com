@@ -1,4 +1,4 @@
-# mohamedsahnoun.dev
+# mohamedsahnoun.com
 
 Portfolio for Mohamed Sahnoun, data engineer. The interface is a query console: visitors type or click SQL-ish commands against a career.
 

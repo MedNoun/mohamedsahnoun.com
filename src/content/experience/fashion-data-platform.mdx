@@ -5,6 +5,12 @@ role: Data Platform Engineer
 org: A US fashion house (via a consultancy)
 period: Jan 2025 to present
 hook: Nine fragmented source systems resolved into one trustworthy customer view on GCP.
+result: >-
+  7M+ customer records resolved to golden IDs · 83 SQLX models, ~6,600 lines of GoogleSQL · 694 of
+  841 commits mine · 124 Terraform files across 3 environments
+lesson: >-
+  Blocking on name plus phone and name plus email is precise and bounded, so a customer who changed
+  both is missed. A fuzzy pass on standardised address would widen recall.
 domain: Data platform
 year: '2025'
 stack:
@@ -43,9 +49,9 @@ To keep that from becoming 6,600 lines of copy-paste, I wrote a 540-line JavaScr
 
 #### The decision, and why
 
-Idempotency had to be a first-class requirement rather than a property we hoped for. I traced a recurring delta drift to non-deterministic window functions: a `ROW_NUMBER` over rows with tied ordering keys picks an arbitrary winner, and arbitrary is not stable across runs. The fix was to enforce an explicit tiebreaker in every `QUALIFY` and `ROW_NUMBER` deduplication in the codebase, which removed the drift at the source instead of reconciling it downstream.
+Idempotency had to be designed in. I traced a recurring delta drift to non-deterministic window functions: a `ROW_NUMBER` over rows with tied ordering keys picks an arbitrary winner, and arbitrary is not stable across runs. The fix was to enforce an explicit tiebreaker in every `QUALIFY` and `ROW_NUMBER` deduplication in the codebase, which removed the drift at the source instead of reconciling it downstream.
 
-Contracts are enforced rather than assumed: 22 models carry declarative Dataform assertion suites for uniqueness and non-null, and over 100 DAG tags allow selective, tag-scoped execution so a change to one domain does not require a full rebuild. A CDC-style work, incremental and delta pattern feeds reverse ETL, where scripted BigQuery procedures chunk and export segmented customer and sales extracts to cloud storage for marketing activation and write-back across four regional segments.
+22 models carry declarative Dataform assertion suites for uniqueness and non-null, and over 100 DAG tags allow selective, tag-scoped execution so a change to one domain does not require a full rebuild. A CDC-style work, incremental and delta pattern feeds reverse ETL, where scripted BigQuery procedures chunk and export segmented customer and sales extracts to cloud storage for marketing activation and write-back across four regional segments.
 
 The Terraform side is the same platform seen from below: roughly 125 files and 5,000 lines provisioning eleven BigQuery dataset modules, 25 JSON table schemas, nine batch ingestion flows, Pub/Sub topics, service accounts and 21 least-privilege IAM bindings, composed from the group's versioned internal module registry with a pinned provider and remote state. Changes ship through dev, pre-production and production via approval-gated Azure DevOps pipelines with per-environment state backends. My work there has centred on schema evolution for new source fields, onboarding new external sources and export buckets, IAM remediation across environments, and clearing Terraform state drift with `moved` blocks and `lifecycle` rules.
 

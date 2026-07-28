@@ -5,6 +5,12 @@ role: Machine Learning Engineer
 org: Fellowship.ai (Launchpad.ai)
 period: Apr 2022 to Jul 2022
 hook: A published method for scoring student piano performances, at 95.8% F-score against a 92.9% baseline.
+result: >-
+  95.8% note-classification F-score against Benetos et al. at 92.9% and Wang et al. at 98.0% · HMM
+  alignment 99.2% to 99.8% · three-person team, article published 4 October 2022
+lesson: >-
+  Discarding note offsets bought trustworthy note identification and cost every duration signal, so
+  the system cannot see rushing, dragging, or a pedal held through a rest.
 domain: Machine learning
 year: '2022'
 stack:
@@ -47,12 +53,12 @@ We exposed the pipeline as a Flask REST API taking a raw audio recording plus a 
 
 #### The outcome
 
-On the evaluation dataset the method reached a 95.8% note-classification F-score, outperforming Benetos et al. at 92.9% and approaching Wang et al. at 98.0%. The comparison matters more than the ranking: both baselines rely on non-negative matrix factorisation requiring per-song dictionary training, with Wang et al. costing roughly one minute of compute per minute of audio. Our pretrained neural approach runs far faster and stays model-agnostic, so it improves automatically as transcription research advances rather than needing to be rebuilt.
+On the evaluation dataset the method reached a 95.8% note-classification F-score, outperforming Benetos et al. at 92.9% and approaching Wang et al. at 98.0%. The comparison matters more than the ranking: both baselines rely on non-negative matrix factorisation requiring per-song dictionary training, with Wang et al. costing roughly one minute of compute per minute of audio. Our pretrained neural approach runs far faster and stays model-agnostic, so it improves automatically as transcription research advances, with no rebuild.
 
 Three fellows worked jointly across research and development, so the honest description of my part is co-authorship of the published method plus hands-on work across the pipeline, including the alignment interoperability layer.
 
 #### What I would do differently
 
-Discarding offsets was the right call in a three-month window and it is still the limitation of the result. The system tells a student which notes were wrong and nothing about how long they held them, so it cannot see rushing, dragging or a pedal held through a rest. Now that transcription offset accuracy has improved, that is the part worth revisiting first, and because the pipeline is model-agnostic it is a swap rather than a rewrite.
+Discarding offsets was the right call in a three-month window and it remains the limitation of the result: the system tells a student which notes were wrong and nothing about how long they held them, so it cannot see rushing, dragging or a pedal held through a rest. Transcription offset accuracy has improved since, and the pipeline is model-agnostic, so fixing it is a swap.
 
-I would also treat the reproducibility wall as a finding rather than an obstacle. We lost real time to papers that could not be run, and publishing our own environment and evaluation harness alongside the article would have been the useful response to it.
+The reproducibility wall deserved to be written up. We lost real time to papers that could not be run, and publishing our own environment and evaluation harness alongside the article would have been the useful response.

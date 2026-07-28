@@ -22,6 +22,16 @@
   margin-right: auto;
 }
 
+.console-title .caret {
+  color: var(--accent);
+  margin-right: 1ch;
+}
+
+/* Reader view keeps the chrome and nothing else: the page is the point. */
+.console.is-collapsed .console-chrome {
+  border-bottom: 0;
+}
+
 .console-btn {
   font: inherit;
   font-size: var(--t--2);
@@ -45,12 +55,18 @@
   padding: calc(var(--space) * 4);
 }
 
+/*
+ * No overscroll-behavior here. overflow-y: auto makes this a scroll container
+ * even when the content fits, and `contain` then swallows the wheel instead of
+ * passing it to the page, so the whole site felt frozen with the cursor over a
+ * short result. Chaining is the correct behaviour: scroll the log while it has
+ * somewhere to go, scroll the page after that.
+ */
 .console-output {
   display: grid;
   gap: calc(var(--space) * 4);
   max-height: 62vh;
   overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .block-echo {
@@ -101,7 +117,7 @@
 
 .result-row {
   display: grid;
-  grid-template-columns: minmax(14ch, 1.1fr) minmax(12ch, 1fr) minmax(0, 2fr) 6ch;
+  grid-template-columns: minmax(16ch, 1.1fr) minmax(14ch, 1fr) minmax(0, 1.8fr) 8ch;
   gap: calc(var(--space) * 4);
   width: 100%;
   text-align: left;
@@ -113,7 +129,12 @@
   cursor: pointer;
 }
 
-.result-row:hover {
+.result-row.is-static {
+  grid-template-columns: minmax(0, 1fr) 8ch;
+  cursor: default;
+}
+
+.result-row:not(.is-static):hover {
   background: var(--bg);
 }
 
@@ -121,11 +142,19 @@
   color: var(--accent);
 }
 
+.result-row .cell-count {
+  color: var(--text);
+  text-align: right;
+}
+
+/*
+ * A table wants width, so the cells wrap instead of being ellipsised. The
+ * console pane breaks out of the prose measure above 1024px to pay for it.
+ */
 .result-row .cell-muted {
   color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .result-row .cell-label {
@@ -226,10 +255,26 @@
   color: var(--accent);
 }
 
+/* The query chips: quieter than the navigation chips, because they are a demo. */
+.chip.is-filter {
+  color: var(--muted);
+  background: transparent;
+  border-style: dashed;
+}
+
+.chip.is-filter:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .console-hint {
   color: var(--muted);
   font-size: var(--t--2);
   margin: calc(var(--space) * 3) 0 0 0;
+}
+
+.console-hint code {
+  font-size: 0.95em;
 }
 
 .console-fallback {
@@ -244,15 +289,16 @@
     max-height: none;
   }
 
-  .result-row {
+  .result-row,
+  .result-row.is-static {
     grid-template-columns: 1fr;
     gap: calc(var(--space) * 1);
     padding: calc(var(--space) * 3);
     min-height: 44px;
   }
 
-  .result-row .cell-muted {
-    white-space: normal;
+  .result-row .cell-count {
+    text-align: left;
   }
 
   .result-row .cell-label {
