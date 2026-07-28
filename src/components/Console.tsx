@@ -319,7 +319,6 @@ export default function Console() {
               heading: 'cv',
               items: [
                 { label: 'download', text: site.cv.slice(1), href: site.cv, download: true },
-                { label: 'plain text', text: 'the whole site as a document', href: '/plain/' },
               ],
             },
           ]);
@@ -724,6 +723,10 @@ export default function Console() {
               {chip.label}
             </button>
           ))}
+        </div>
+
+        {/* Its own row: these are queries, not navigation, and the labels are long. */}
+        <div class="chips-query">
           {filterChips.map((chip) => (
             <button
               type="button"

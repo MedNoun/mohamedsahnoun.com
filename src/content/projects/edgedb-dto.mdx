@@ -24,11 +24,11 @@ order: 1
 
 #### The problem
 
-EdgeDB ships an official code generator that turns each `.edgeql` file into a standalone typed Python function. It is fast and correct. It is also flat. There is no way to compose queries across related object types, no validation over the inputs, and every project that uses it ends up writing the same glue between query functions and application code by hand. That glue is precisely the ergonomics an ORM would have provided. I wanted the composability back without dragging in an ORM, because the reason to use EdgeDB in the first place is that EdgeQL is better at expressing the query than an ORM's fluent API is.
+EdgeDB ships an official code generator that turns each `.edgeql` file into a standalone typed Python function. It is fast and correct. It is also flat. **There is no way to compose queries across related object types, no validation over the inputs, and every project that uses it ends up writing the same glue between query functions and application code by hand.** That glue is precisely the ergonomics an ORM would have provided. I wanted the composability back without dragging in an ORM, because the reason to use EdgeDB in the first place is that EdgeQL is better at expressing the query than an ORM's fluent API is.
 
 #### The constraint that made it hard
 
-A generated query function knows nothing about the objects around it. Given `insert Course` and `insert Student`, the generator emits two functions whose only relationship is that one of them takes a UUID the other happens to return. Composition means letting a field hold either a resolved identifier or another unresolved query, and then working out, at runtime, what order to execute them in. The library also had to stay out of the query's way: the moment it started rewriting EdgeQL it would have become the query builder I was trying not to write.
+**A generated query function knows nothing about the objects around it.** Given `insert Course` and `insert Student`, the generator emits two functions whose only relationship is that one of them takes a UUID the other happens to return. Composition means letting a field hold either a resolved identifier or another unresolved query, and then working out, at runtime, what order to execute them in. The library also had to stay out of the query's way: the moment it started rewriting EdgeQL it would have become the query builder I was trying not to write.
 
 #### What I tried
 
@@ -42,7 +42,7 @@ The runtime half is a base class implementing execution semantics. Running a DTO
 
 #### The outcome
 
-`edgedb-dto` is on PyPI under MIT, past 1,000 downloads, at 96% of attributed commits (72 of 75) across roughly 651 lines in 6 modules. The shipped example builds a student, an instructor and two shared courses, then persists the full graph with a single call.
+**`edgedb-dto` is on PyPI under MIT, past 1,000 downloads, at 96% of attributed commits (72 of 75) across roughly 651 lines in 6 modules.** The shipped example builds a student, an instructor and two shared courses, then persists the full graph with a single call.
 
 The release pipeline is the part I would point at second. A SemVer tag pattern gates a GitLab CI job that builds with Poetry and dual publishes to both PyPI and the GitLab package registry, then cuts a release, with credentials injected from masked variables. Quality is enforced by a pre-commit suite spanning the commit, push and commit-message stages: black, refurb, flake8 with seven plugins including pydocstyle and bugbear, codespell, rstcheck, and a dozen hygiene hooks.
 
@@ -50,6 +50,5 @@ The release pipeline is the part I would point at second. A SemVer tag pattern g
 
 Two things, both documented in the repository.
 
-The resolver has an N+1 pattern, a direct consequence of deliberately not being a query builder: each nested DTO executes its own query rather than being folded into one statement. The sharper version of the same fault shows up in the `linked_dtos` example, where the same two course DTOs appear in both the instructor's and the student's `courses` list. The resolver substitutes the returned identifier into the parent's field, not into the shared child, so a DTO referenced from two parents executes twice. That is harmless against the idempotent `unless conflict` upserts the examples use, but it is the same root cause, and a resolved-node cache keyed on object identity would fix both.
-
-The second is plainer: there is no test suite. The pre-commit config already excludes a `tests/` directory that never landed. For a library other people install, that is the most valuable thing I could add to it.
+- **The resolver has an N+1 pattern**, a direct consequence of deliberately not being a query builder: each nested DTO executes its own query rather than being folded into one statement. The sharper version of the same fault shows up in the `linked_dtos` example, where the same two course DTOs appear in both the instructor's and the student's `courses` list. The resolver substitutes the returned identifier into the parent's field, not into the shared child, so a DTO referenced from two parents executes twice. That is harmless against the idempotent `unless conflict` upserts the examples use, but it is the same root cause, and a resolved-node cache keyed on object identity would fix both.
+- **There is no test suite.** The pre-commit config already excludes a `tests/` directory that never landed. For a library other people install, that is the most valuable thing I could add to it.

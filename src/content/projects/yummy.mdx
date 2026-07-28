@@ -23,11 +23,11 @@ order: 4
 
 #### The problem
 
-A restaurant till has one requirement that outranks every feature on the list: it has to keep taking orders when the connection goes. Most point-of-sale software treats a server as the source of truth and degrades into an expensive paperweight the moment that assumption fails. Yummy inverts it. The application owns its own database, and the network is something it uses when available rather than something it depends on. I designed and built it solo over five months on Electron and Angular 13, roughly 2,050 lines of TypeScript plus templates, and all thirty commits are mine.
+**A restaurant till has one requirement that outranks every feature on the list: it has to keep taking orders when the connection goes.** Most point-of-sale software treats a server as the source of truth and degrades into an expensive paperweight the moment that assumption fails. Yummy inverts it. The application owns its own database, and the network is something it uses when available rather than something it depends on. I designed and built it solo over five months on Electron and Angular 13, roughly 2,050 lines of TypeScript plus templates, and all thirty commits are mine.
 
 #### The constraint that made it hard
 
-Owning your data locally in Electron pulls in a security problem immediately. The obvious way to give an Angular renderer a database is to switch on Node integration, at which point any script that reaches the renderer has the filesystem. The safe configuration (context isolation on, Node integration off) is the right one, but it means the renderer cannot touch persistence at all, and every repository operation has to cross a process boundary as a message.
+Owning your data locally in Electron pulls in a security problem immediately. **The obvious way to give an Angular renderer a database is to switch on Node integration, at which point any script that reaches the renderer has the filesystem.** The safe configuration (context isolation on, Node integration off) is the right one, but it means the renderer cannot touch persistence at all, and every repository operation has to cross a process boundary as a message.
 
 #### What I tried
 
@@ -45,12 +45,15 @@ Route guards and resolvers gate access and prefetch data across lazily loaded fe
 
 #### The outcome
 
-The core loop works and it works offline: sign in, build a bill, close it, browse history, all against local SQLite with no server in the path. The Electron security posture is right where it counts, with context isolation enabled and Node integration disabled.
+**The core loop works and it works offline: sign in, build a bill, close it, browse history, all against local SQLite with no server in the path.** The Electron security posture is right where it counts, with context isolation enabled and Node integration disabled.
 
 #### Known limitations
 
-This is a 2023 learning build. The README claims more than the code delivers, and I would either build the rest or cut the list. Printing and stats are empty classes. The `stats` IPC handler builds a TypeORM query builder and never calls `.getRawMany()`, so it returns the builder and never the rows. Synchronisation is modelled, not built: the `synced` flag and the remote API exist, with no reconciliation engine behind them. And `admin.guard.ts` returns `true` unconditionally, which means every route it is supposed to protect is open.
+This is a 2023 learning build. The README claims more than the code delivers, and I would either build the rest or cut the list.
 
-Technically, the preload bridge is the thing I would change first. It exposes generic `send`, `invoke` and `on` for any channel name, which reopens the attack surface context isolation exists to close. The fix is a named channel allowlist, a small change: the hard part, keeping Node out of the renderer, is already done.
-
-Two smaller ones. `copyFile` writes into the application path, which is read-only inside a packaged asar bundle, so it works in development and breaks once shipped; it should target the user-data directory. And `synchronize: true` on TypeORM is fine while developing and will silently alter schemas in production, where real migrations are the answer.
+- **The preload bridge is the thing I would change first.** It exposes generic `send`, `invoke` and `on` for any channel name, which reopens the attack surface context isolation exists to close. The fix is a named channel allowlist, a small change: the hard part, keeping Node out of the renderer, is already done.
+- **`admin.guard.ts` returns `true` unconditionally**, which means every route it is supposed to protect is open.
+- **Printing and stats are empty classes.** The `stats` IPC handler builds a TypeORM query builder and never calls `.getRawMany()`, so it returns the builder and never the rows.
+- **Synchronisation is modelled, not built.** The `synced` flag and the remote API exist, with no reconciliation engine behind them.
+- **`copyFile` writes into the application path**, which is read-only inside a packaged asar bundle, so it works in development and breaks once shipped; it should target the user-data directory.
+- **`synchronize: true` on TypeORM** is fine while developing and will silently alter schemas in production, where real migrations are the answer.

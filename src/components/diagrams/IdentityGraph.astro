@@ -1,0 +1,144 @@
+---
+/*
+ * Identity resolution as a graph, which is the one idea in this case study that
+ * prose cannot carry: record 1 and record 2 share a phone, record 2 and record 3
+ * share an email, so all three are one person even though 1 and 3 have nothing
+ * in common. Union-Find collapses the component to one representative.
+ *
+ * Inline SVG, no library, no external request. Records are numbered, never named,
+ * and no source system appears: the anonymisation rule holds inside the diagram
+ * as much as it does in the copy.
+ */
+---
+
+<figure class="diagram">
+  <svg
+    viewBox="0 0 560 200"
+    role="img"
+    aria-labelledby="idgraph-title idgraph-desc"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <title id="idgraph-title">Three customer records resolved to one golden ID</title>
+    <desc id="idgraph-desc">
+      Record 1 and record 2 are joined by a shared name and phone number. Record 2 and record 3 are
+      joined by a shared name and email address. Records 1 and 3 share nothing directly. Connected
+      components collapses all three into a single golden ID.
+    </desc>
+
+    <!-- Edges first, so the node fills cover the line ends. -->
+    <g class="edge">
+      <line x1="64" y1="74" x2="184" y2="158" />
+      <line x1="184" y1="158" x2="304" y2="74" />
+    </g>
+
+    <!-- No edge between 1 and 3. That is the whole point, so absence is drawn. -->
+    <g class="edge is-absent">
+      <line x1="73" y1="74" x2="295" y2="74" />
+    </g>
+
+    <g class="node">
+      <circle cx="64" cy="74" r="9" />
+      <circle cx="184" cy="158" r="9" />
+      <circle cx="304" cy="74" r="9" />
+    </g>
+
+    <g class="node-label">
+      <text x="64" y="42" text-anchor="middle">record 1</text>
+      <text x="304" y="42" text-anchor="middle">record 3</text>
+      <text x="184" y="186" text-anchor="middle">record 2</text>
+    </g>
+
+    <g class="edge-label">
+      <text x="184" y="64" text-anchor="middle">nothing in common</text>
+      <text x="112" y="116" text-anchor="end">name + phone</text>
+      <text x="264" y="116">name + email</text>
+    </g>
+
+    <g class="collapse">
+      <line x1="372" y1="116" x2="432" y2="116" />
+      <polygon points="432,110 446,116 432,122" />
+      <text x="409" y="104" text-anchor="middle">union-find</text>
+    </g>
+
+    <g class="golden">
+      <circle cx="486" cy="116" r="15" />
+      <text x="486" y="158" text-anchor="middle">one golden ID</text>
+    </g>
+  </svg>
+
+  <figcaption>
+    Record 1 shares a name and phone with record 2, record 2 shares a name and email with record 3,
+    and records 1 and 3 share nothing. All three are the same person, so connected components
+    resolves them to one golden ID.
+  </figcaption>
+</figure>
+
+<style>
+  .diagram {
+    margin: 0;
+  }
+
+  /* max-width and height: auto come from the global `img, svg` rule. */
+  .diagram svg {
+    display: block;
+    width: 100%;
+    font-family: var(--mono);
+    /* User units, so it scales with the viewBox rather than fighting it. */
+    font-size: 12px;
+  }
+
+  /* The edges that exist carry the argument, so they are the visible ones. */
+  .edge line {
+    stroke: var(--muted);
+    stroke-width: 1.5;
+  }
+
+  /* The edge that does not exist is drawn faintly, at --border against --bg. */
+  .edge.is-absent line {
+    stroke: var(--border);
+    stroke-width: 1;
+    stroke-dasharray: 3 4;
+  }
+
+  .edge-label text,
+  .collapse text {
+    fill: var(--muted);
+  }
+
+  .node circle {
+    fill: var(--surface);
+    stroke: var(--muted);
+    stroke-width: 1.5;
+  }
+
+  .node-label text {
+    fill: var(--text);
+  }
+
+  .collapse line {
+    stroke: var(--muted);
+  }
+
+  .collapse polygon {
+    fill: var(--muted);
+  }
+
+  /* The one thing the pipeline produces, so the one thing in the accent colour. */
+  .golden circle {
+    fill: none;
+    stroke: var(--accent);
+    stroke-width: 2;
+  }
+
+  .golden text {
+    fill: var(--accent);
+  }
+
+  .diagram figcaption {
+    font-family: var(--mono);
+    font-size: var(--t--2);
+    line-height: 1.6;
+    color: var(--muted);
+    margin-top: calc(var(--space) * 3);
+  }
+</style>

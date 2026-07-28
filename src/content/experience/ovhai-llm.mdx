@@ -28,11 +28,11 @@ order: 2
 
 #### The problem
 
-OVHai LLM trains Transformer-based neural machine translation models for banks, investment funds and other regulated financial institutions. Those models are only as good as the corpora behind them, and the data team was preparing every corpus by hand for each new language pair: slow, inconsistent, and under a garbage-in-garbage-out constraint, a direct risk to model quality. My five-month end-of-studies internship in Paris was to re-architect the internal platform that does that preparation, Datomatique, and automate the stages that were still manual.
+OVHai LLM trains Transformer-based neural machine translation models for banks, investment funds and other regulated financial institutions. **Those models are only as good as the corpora behind them, and the data team was preparing every corpus by hand for each new language pair: slow, inconsistent, and under a garbage-in-garbage-out constraint, a direct risk to model quality.** My five-month end-of-studies internship in Paris was to re-architect the internal platform that does that preparation, Datomatique, and automate the stages that were still manual.
 
 #### The constraint that made it hard
 
-The clients are the constraint. Banking data cannot leave the premises, which rules out managed cloud services and makes every infrastructure choice a self-hosting choice. And the workflow itself is an ordered pipeline carrying substantial payloads (documents, corpora, model outputs) rather than a stream of small notifications, which quietly rules out a lot of the standard event-driven advice.
+**The clients are the constraint. Banking data cannot leave the premises, which rules out managed cloud services and makes every infrastructure choice a self-hosting choice.** And the workflow itself is an ordered pipeline carrying substantial payloads (documents, corpora, model outputs) rather than a stream of small notifications, which quietly rules out a lot of the standard event-driven advice.
 
 #### What I tried
 
@@ -54,7 +54,7 @@ Services communicate through a self-describing JSON envelope carrying the ordere
 
 The platform ships through self-hosted GitLab CI/CD, chosen for client confidentiality, with pre-commit hooks, automated documentation builds, Python wheel packaging, Docker image builds and registry pushes. I also shipped a MinIO CLI inside the library so the data team could manage buckets and artefacts without learning the underlying SDK, which was the smallest piece of work with the most immediate uptake.
 
-The internship also produced an open-source spin-off: `edgedb-dto`, published to PyPI and now past 1,000 downloads. I delivered throughout under Kanban with an explicit definition of done gated on merge-request review, and defended the thesis at INSAT on 25 September 2024.
+**The internship also produced an open-source spin-off: `edgedb-dto`, published to PyPI and now past 1,000 downloads.** I delivered throughout under Kanban with an explicit definition of done gated on merge-request review, and defended the thesis at INSAT on 25 September 2024.
 
 #### What I would do differently
 

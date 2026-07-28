@@ -4,7 +4,7 @@ import { site } from '../data/site';
 import portrait from '../assets/portrait.jpg';
 
 interface Props {
-  /** The console page links out to /plain/, the plain page links back. */
+  /** Only the plain page links across, back to the console. */
   variant: 'console' | 'plain';
 }
 
@@ -37,13 +37,12 @@ const { variant } = Astro.props;
     <a href={site.links.github} rel="noopener">github</a>
     <a href={site.links.article} rel="noopener">published article</a>
     <a href={site.cv} download>cv</a>
-    {
-      variant === 'console' ? (
-        <a href="/plain/">plain text version</a>
-      ) : (
-        <a href="/">console version</a>
-      )
-    }
+    {/*
+      One escape hatch, not three. The console's own "Reader view" button is the
+      in-page route to the whole document, so /plain/ is not advertised here. It
+      stays crawlable, in the sitemap, and linked from the CV.
+    */}
+    {variant === 'plain' && <a href="/">console version</a>}
   </p>
 </header>
 

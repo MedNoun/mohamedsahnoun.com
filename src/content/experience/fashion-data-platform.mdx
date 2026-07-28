@@ -27,15 +27,19 @@ stack:
 order: 1
 ---
 
+import IdentityGraph from '../../components/diagrams/IdentityGraph.astro';
+
 #### The problem
 
-A US fashion house, where I work through a consultancy, sells through e-commerce, physical retail and a set of marketing and planning tools that grew up separately. Nine heterogeneous source systems spanning commerce, ERP, marketing automation and planning each held part of the truth about the same customer, and none of them agreed. The same person existed several times over, spelled differently, with different addresses, in systems that had no shared key. Every question worth asking about a customer required a human to reconcile that by hand first.
+A US fashion house, where I work through a consultancy, sells through e-commerce, physical retail and a set of marketing and planning tools that grew up separately. **Nine heterogeneous source systems spanning commerce, ERP, marketing automation and planning each held part of the truth about the same customer, and none of them agreed.** The same person existed several times over, spelled differently, with different addresses, in systems that had no shared key. Every question worth asking about a customer required a human to reconcile that by hand first.
 
 I own two production repositories on Google Cloud that together answer it. I designed and built the BigQuery and Dataform ELT codebase from scratch, authoring roughly 83% of its 841 commits, and I maintain and extend the Terraform codebase that provisions the platform underneath it.
 
 #### The constraint that made it hard
 
-Identity resolution across those systems is a graph problem. If record A shares a phone number with record B, and B shares an email with C, then A, B and C are one person, even though A and C have nothing in common. The natural expression of that is connected components over a graph, and the platform is BigQuery, which is set-based SQL with no graph traversal and no procedural loop I would want in a nightly pipeline.
+**Identity resolution across those systems is a graph problem.** If record A shares a phone number with record B, and B shares an email with C, then A, B and C are one person, even though A and C have nothing in common. The natural expression of that is connected components over a graph, and the platform is BigQuery, which is set-based SQL with no graph traversal and no procedural loop I would want in a nightly pipeline.
+
+<IdentityGraph />
 
 The second constraint was determinism. The output feeds reverse ETL into systems that write back to customers, so the same input has to produce the same golden IDs on every run. A result that reshuffles between runs is worse than no result.
 
@@ -57,7 +61,7 @@ The Terraform side is the same platform seen from below: roughly 125 files and 5
 
 #### The outcome
 
-The platform runs in production. Silos across e-commerce, retail point of sale and marketing collapse into stable golden IDs, and the star schema on top is what the business actually queries. Observability is a Cloud Logging sink through Pub/Sub and Dataflow streaming errors to Datadog with a dead-letter topic, and delivery runs on Cloud Build triggers driving Cloud Workflows that compile and release Dataform versions through its API with retry and exponential backoff.
+**The platform runs in production. Silos across e-commerce, retail point of sale and marketing collapse into stable golden IDs, and the star schema on top is what the business actually queries.** Observability is a Cloud Logging sink through Pub/Sub and Dataflow streaming errors to Datadog with a dead-letter topic, and delivery runs on Cloud Build triggers driving Cloud Workflows that compile and release Dataform versions through its API with retry and exponential backoff.
 
 #### What I would do differently
 

@@ -148,8 +148,9 @@
 }
 
 /*
- * A table wants width, so the cells wrap instead of being ellipsised. The
- * console pane breaks out of the prose measure above 1024px to pay for it.
+ * A table wants width, so the cells wrap instead of being ellipsised. The pane
+ * itself breaks out of the 68ch prose measure to pay for that: see the
+ * .console-region rules in src/pages/index.astro.
  */
 .result-row .cell-muted {
   color: var(--muted);
@@ -232,11 +233,34 @@
   border-color: var(--accent);
 }
 
+/*
+ * Two rows, not one wrapping row of nine. Navigation and real queries are
+ * different things, and nine mixed-width chips in one row wrap to an orphan.
+ * The six short navigation labels fit one line on their own.
+ */
 .chips {
   display: flex;
   flex-wrap: wrap;
   gap: calc(var(--space) * 2);
   margin-top: calc(var(--space) * 4);
+}
+
+/*
+ * The three query labels are long (~800px together), so they only fit across
+ * once the pane has broken out to 940px. An explicit grid rather than wrapping:
+ * three columns when there is room, one when there is not, never a 2+1 orphan.
+ */
+.chips-query {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: calc(var(--space) * 2);
+  margin-top: calc(var(--space) * 2);
+}
+
+@media (min-width: 1024px) {
+  .chips-query {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 .chip {
@@ -260,6 +284,8 @@
   color: var(--muted);
   background: transparent;
   border-style: dashed;
+  /* Grid cells are equal width, so centred labels would not line up. */
+  text-align: left;
 }
 
 .chip.is-filter:hover {
@@ -307,6 +333,7 @@
     margin-right: 1ch;
   }
 
+  /* .chips-query is already a single column at this width. */
   .chips {
     display: grid;
     grid-template-columns: 1fr;

@@ -177,6 +177,18 @@ svg {
 }
 
 /*
+ * Diagrams sit inside the prose measure. A figure is a block of its own, so it
+ * gets more air above and below than the paragraph rhythm gives.
+ */
+.prose > figure {
+  margin: calc(var(--space) * 8) 0;
+}
+
+.prose > figure + * {
+  margin-top: calc(var(--space) * 8);
+}
+
+/*
  * The console manages what is on screen, but only once it has hydrated and set
  * data-console on the body. Without JavaScript every entry stays visible.
  */
