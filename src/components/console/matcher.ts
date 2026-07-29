@@ -163,6 +163,34 @@ export function completions(entries: Entry[]): string[] {
   ];
 }
 
+/**
+ * The completion for whatever token the caret sits on, or null. One function so
+ * the ghost text the console paints and the value Tab inserts cannot disagree.
+ *
+ * The token is taken from the raw input, not from `normalise`, which rewrites
+ * separators and collapses runs of spaces. Its output can be shorter than its
+ * input, and splicing the raw string by a normalised length moved the splice
+ * point: `SELECT * FROM  proj` (two spaces) used to eat a character on Tab.
+ */
+export function completionFor(
+  raw: string,
+  vocabulary: string[],
+): { token: string; hit: string; tail: string } | null {
+  const token = raw.split(/\s+/).pop() ?? '';
+  // A single character prefixes most of the vocabulary, which is noise, not help.
+  if (token.length < 2) return null;
+  const needle = token.toLowerCase().replace(/_/g, '-');
+  const hit = vocabulary.find((word) => word.startsWith(needle) && word !== needle);
+  return hit ? { token, hit, tail: hit.slice(needle.length) } : null;
+}
+
+/** Apply a completion to the raw input, leaving everything before the token. */
+export function applyCompletion(raw: string, vocabulary: string[]): string {
+  const completion = completionFor(raw, vocabulary);
+  if (!completion) return raw;
+  return `${raw.slice(0, raw.length - completion.token.length)}${completion.hit}`;
+}
+
 export function normalise(raw: string): string {
   return raw
     .toLowerCase()

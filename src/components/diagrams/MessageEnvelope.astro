@@ -8,90 +8,81 @@
  * Field labels are the descriptions from content-source, not invented JSON keys:
  * the source describes what the envelope carries without naming the keys.
  *
- * Styling comes from the shared .diagram rules in src/styles/global.css.
+ * Shared canvas and styling: the .diagram rules in src/styles/global.css.
  */
 ---
 
 <figure class="diagram">
-  <svg
-    viewBox="-8 -6 574 288"
-    role="img"
-    aria-labelledby="envelope-title envelope-desc"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <title id="envelope-title">A self-describing message envelope at two pipeline hops</title>
-    <desc id="envelope-desc">
-      The same envelope is shown twice. Both copies carry an identical ordered task list of extract,
-      translate, score and filter, plus per-service configuration, a target queue and exception and
-      traceback fields. At the first hop the current index points at extract; after the document
-      extraction service increments it, the index points at translate. Only the index changes.
-    </desc>
+  <div class="diagram-scroll">
+    <svg
+      viewBox="-8 -10 596 258"
+      role="img"
+      aria-labelledby="envelope-title envelope-desc"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <title id="envelope-title">A self-describing message envelope at two pipeline hops</title>
+      <desc id="envelope-desc">
+        The same envelope is shown twice. Both copies carry an identical ordered task list of extract,
+        translate, score and filter, plus per-service configuration, a target queue and exception and
+        traceback fields. At the first hop the current index points at extract; after the document
+        extraction service increments it, the index points at translate. Only the index changes.
+      </desc>
 
-    <!-- Hop 1 -->
-    <g class="node">
-      <rect x="0" y="18" width="228" height="164" rx="3" />
-    </g>
-    <g class="edge-label">
-      <text x="0" y="12">hop 1</text>
-    </g>
-    <g class="field">
-      <text x="14" y="42">ordered task list</text>
-      <text x="14" y="104">per-service config</text>
-      <text x="14" y="126">target queue</text>
-      <text x="14" y="148">exception / traceback</text>
-    </g>
-    <g class="offset">
-      <text x="26" y="62">extract, translate,</text>
-      <text x="26" y="80">score, filter</text>
-    </g>
-    <g class="accent">
-      <text x="14" y="172">current index -&gt; extract</text>
-    </g>
+      <g class="edge-label">
+        <text x="0" y="0">identical either side, except one line</text>
+      </g>
 
-    <!-- The broker carries it from one service to the next. -->
-    <g class="collapse">
-      <line x1="236" y1="100" x2="292" y2="100" />
-      <polygon points="292,94 306,100 292,106" />
-      <text x="271" y="89" text-anchor="middle">ActiveMQ</text>
-    </g>
+      <!-- Hop one. -->
+      <g class="node">
+        <rect x="0" y="20" width="228" height="146" rx="3" />
+      </g>
+      <g class="field">
+        <text x="14" y="44">tasks: extract, translate,</text>
+        <text x="14" y="64">score, filter</text>
+        <text x="14" y="92">per-service config</text>
+        <text x="14" y="112">target queue</text>
+        <text x="14" y="132">exception / traceback</text>
+      </g>
+      <g class="accent">
+        <text x="14" y="156">index -&gt; extract</text>
+      </g>
 
-    <!-- Hop 2: identical envelope, index advanced by one. -->
-    <g class="node">
-      <rect x="316" y="18" width="228" height="164" rx="3" />
-    </g>
-    <g class="edge-label">
-      <text x="316" y="12">hop 2</text>
-    </g>
-    <g class="field">
-      <text x="330" y="42">ordered task list</text>
-      <text x="330" y="104">per-service config</text>
-      <text x="330" y="126">target queue</text>
-      <text x="330" y="148">exception / traceback</text>
-    </g>
-    <g class="offset">
-      <text x="342" y="62">extract, translate,</text>
-      <text x="342" y="80">score, filter</text>
-    </g>
-    <g class="accent">
-      <text x="330" y="172">current index -&gt; translate</text>
-    </g>
+      <!-- The broker carries it from one service to the next. -->
+      <g class="collapse">
+        <line x1="240" y1="93" x2="296" y2="93" />
+        <polygon points="296,87 310,93 296,99" />
+        <text x="275" y="81" text-anchor="middle">ActiveMQ</text>
+      </g>
 
-    <!-- Which service is doing the work at each hop. -->
-    <g class="node-label">
-      <text x="114" y="212" text-anchor="middle">document extraction</text>
-      <text x="430" y="212" text-anchor="middle">translation</text>
-    </g>
-    <g class="edge-label">
-      <text x="114" y="232" text-anchor="middle">increments the index</text>
-      <text x="430" y="232" text-anchor="middle">reads its own next task</text>
-      <text x="272" y="270" text-anchor="middle">reorder the pipeline by editing the message</text>
-    </g>
-  </svg>
+      <!-- Hop two: identical envelope, index advanced by one. -->
+      <g class="node">
+        <rect x="310" y="20" width="228" height="146" rx="3" />
+      </g>
+      <g class="field">
+        <text x="324" y="44">tasks: extract, translate,</text>
+        <text x="324" y="64">score, filter</text>
+        <text x="324" y="92">per-service config</text>
+        <text x="324" y="112">target queue</text>
+        <text x="324" y="132">exception / traceback</text>
+      </g>
+      <g class="accent">
+        <text x="324" y="156">index -&gt; translate</text>
+      </g>
+
+      <!-- Which service is doing the work at each hop. -->
+      <g class="node-label">
+        <text x="0" y="192">document extraction</text>
+        <text x="310" y="192">translation</text>
+      </g>
+      <g class="edge-label">
+        <text x="0" y="212">increments the index</text>
+        <text x="310" y="212">reads its own next task</text>
+      </g>
+    </svg>
+  </div>
 
   <figcaption>
-    Both hops carry the identical ordered task list. Only the current-task index moves, incremented by
-    each service as it finishes. A message therefore knows its own remaining itinerary, which means no
-    service needs to know what comes after it and the pipeline can be reordered by changing the message
-    rather than the code.
+    Only the index moves, so a message carries its own remaining itinerary and no service needs to know
+    what follows it.
   </figcaption>
 </figure>

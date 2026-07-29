@@ -26,3 +26,6 @@ pnpm-debug.log*
 # source material: names the client, the employer and their source systems.
 # never commit, this repo is public
 content-source/
+
+# Local screenshots from scripts/shoot.mjs
+.shots/

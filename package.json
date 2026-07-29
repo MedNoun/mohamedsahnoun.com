@@ -10,6 +10,8 @@
     "build": "astro build",
     "preview": "astro preview",
     "og": "node scripts/og.mjs",
+    "test": "node scripts/completion.test.mjs",
+    "shoot": "node scripts/shoot.mjs",
     "astro": "astro"
   },
   "dependencies": {

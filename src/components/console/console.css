@@ -195,6 +195,46 @@
   color: var(--accent);
 }
 
+/*
+ * The field and its ghost overlay share this box, so they share a font, a size
+ * and an origin. Anything that changes one metric has to change both or the
+ * suggestion stops lining up with the caret.
+ */
+.console-field {
+  position: relative;
+  display: flex;
+  flex: 1;
+  min-width: 0;
+}
+
+.console-ghost {
+  position: absolute;
+  inset: 0;
+  font: inherit;
+  color: var(--muted);
+  white-space: pre;
+  overflow: hidden;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+}
+
+/* The typed prefix, occupying its exact width without painting over the input. */
+.console-ghost i {
+  font-style: normal;
+  color: transparent;
+}
+
+.console-ghost em {
+  font-style: normal;
+  font-size: var(--t--2);
+  color: var(--accent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0 calc(var(--space) * 1);
+  margin-left: calc(var(--space) * 2);
+}
+
 .console-input {
   flex: 1;
   min-width: 0;

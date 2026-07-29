@@ -3,99 +3,94 @@
  * The inbound half of the interceptor, which is where the protocol's guarantee
  * actually lives. The ticket-granting ticket opens under the TGS's own long-term
  * key; the session key comes out of the ticket; that session key opens the
- * client's authenticator. So the server proves the client holds a key the client
- * never transmitted, and the session key is the accent because it is the piece
- * that was never on the wire.
+ * client's authenticator. So the server proves the client holds a key it never
+ * transmitted, and the session key is the accent because it is the piece that was
+ * never on the wire.
  *
- * Styling comes from the shared .diagram rules in src/styles/global.css.
+ * Shared canvas and styling: the .diagram rules in src/styles/global.css.
  */
 ---
 
 <figure class="diagram">
-  <svg
-    viewBox="-8 -6 574 244"
-    role="img"
-    aria-labelledby="nested-title nested-desc"
-    xmlns="http://www.w3.org/2000/svg"
-  >
-    <title id="nested-title">Nested decryption of a ticket-granting ticket</title>
-    <desc id="nested-desc">
-      The client sends a ticket-granting ticket and an authenticator. The interceptor decrypts the
-      ticket with the Ticket Granting Service's long-term key, which yields a session key from inside
-      the ticket. That session key then decrypts the authenticator. The session key never crosses the
-      network, so opening the authenticator proves the client holds it.
-    </desc>
+  <div class="diagram-scroll">
+    <svg
+      viewBox="-8 -10 596 240"
+      role="img"
+      aria-labelledby="nested-title nested-desc"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <title id="nested-title">Nested decryption of a ticket-granting ticket</title>
+      <desc id="nested-desc">
+        The client sends a ticket-granting ticket and an authenticator. The interceptor decrypts the
+        ticket with the Ticket Granting Service's long-term key, which yields a session key from inside
+        the ticket. That session key then decrypts the authenticator. The session key never crosses the
+        network, so opening the authenticator proves the client holds it.
+      </desc>
 
-    <g class="node-label">
-      <text x="0" y="16">what the client sends</text>
-    </g>
+      <g class="edge-label">
+        <text x="0" y="0">one interceptor, every KDC endpoint</text>
+      </g>
 
-    <!-- The two things that arrive, each sealed under a different key. -->
-    <g class="node">
-      <rect x="0" y="26" width="196" height="34" rx="3" />
-      <rect x="0" y="72" width="196" height="34" rx="3" />
-    </g>
-    <g class="field">
-      <text x="12" y="48">TGT (sealed)</text>
-      <text x="12" y="94">authenticator (sealed)</text>
-    </g>
+      <!-- What arrives, each half sealed under a different key. -->
+      <g class="node">
+        <rect x="0" y="20" width="216" height="34" rx="3" />
+        <rect x="0" y="76" width="216" height="34" rx="3" />
+      </g>
+      <g class="field">
+        <text x="14" y="42">TGT, sealed</text>
+        <text x="14" y="98">authenticator, sealed</text>
+      </g>
 
-    <!-- Step 1: the TGS opens the ticket with its own long-term key. -->
-    <g class="collapse">
-      <line x1="204" y1="43" x2="252" y2="43" />
-      <polygon points="252,37 266,43 252,49" />
-    </g>
-    <g class="edge-label">
-      <text x="235" y="31" text-anchor="middle">open with</text>
-      <text x="235" y="60" text-anchor="middle">TGS key</text>
-    </g>
+      <!-- Step one: the TGS opens the ticket with its own long-term key. -->
+      <g class="collapse">
+        <line x1="228" y1="37" x2="296" y2="37" />
+        <polygon points="296,31 310,37 296,43" />
+        <text x="262" y="25" text-anchor="middle">TGS key</text>
+      </g>
 
-    <g class="node">
-      <rect x="276" y="26" width="176" height="34" rx="3" />
-    </g>
-    <g class="field">
-      <text x="288" y="48">ticket contents</text>
-    </g>
+      <g class="node">
+        <rect x="322" y="20" width="216" height="34" rx="3" />
+      </g>
+      <g class="field">
+        <text x="336" y="42">ticket contents</text>
+      </g>
 
-    <!-- Step 2: the session key is lifted out of the opened ticket. -->
-    <g class="accent">
-      <line x1="364" y1="60" x2="364" y2="86" />
-      <polygon points="358,86 364,100 370,86" />
-      <rect x="276" y="104" width="176" height="34" rx="3" />
-      <text x="364" y="126" text-anchor="middle">session key</text>
-      <text x="452" y="78">never sent</text>
-    </g>
+      <!-- Step two: the session key is lifted out of the opened ticket. -->
+      <g class="accent">
+        <line x1="430" y1="54" x2="430" y2="70" />
+        <polygon points="424,70 430,84 436,70" />
+        <rect x="322" y="76" width="216" height="34" rx="3" />
+        <text x="336" y="98">session key</text>
+      </g>
+      <g class="edge-label">
+        <text x="452" y="70">never sent</text>
+      </g>
 
-    <!-- Step 3: that session key opens the authenticator. -->
-    <g class="accent">
-      <line x1="276" y1="121" x2="204" y2="121" />
-      <polygon points="204,115 190,121 204,127" />
-    </g>
-    <g class="edge-label">
-      <text x="240" y="113" text-anchor="middle">opens</text>
-    </g>
+      <!-- Step three: that session key opens the authenticator. -->
+      <g class="accent">
+        <line x1="322" y1="93" x2="242" y2="93" />
+        <polygon points="242,87 228,93 242,99" />
+      </g>
+      <g class="edge-label">
+        <text x="275" y="85" text-anchor="middle">opens</text>
+      </g>
 
-    <g class="collapse">
-      <line x1="98" y1="112" x2="98" y2="152" />
-      <polygon points="92,152 98,166 104,152" />
-    </g>
+      <g class="collapse">
+        <line x1="108" y1="110" x2="108" y2="146" />
+        <polygon points="102,146 108,160 114,146" />
+      </g>
 
-    <g class="node">
-      <rect x="0" y="170" width="452" height="34" rx="3" />
-    </g>
-    <g class="field">
-      <text x="12" y="192">so the client holds a key it never transmitted</text>
-    </g>
-
-    <g class="edge-label">
-      <text x="0" y="226">one interceptor, every KDC endpoint</text>
-    </g>
-  </svg>
+      <g class="node">
+        <rect x="0" y="166" width="538" height="34" rx="3" />
+      </g>
+      <g class="field">
+        <text x="14" y="188">the client holds a key it never transmitted</text>
+      </g>
+    </svg>
+  </div>
 
   <figcaption>
-    Inbound, the interceptor decrypts the ticket-granting ticket under the Ticket Granting Service's
-    own long-term key, recovers the session key from inside that ticket, and uses it to decrypt the
-    client's authenticator. The session key never crosses the network, so the authenticator opening at
-    all is the proof that the client holds it.
+    The ticket opens under the TGS key, the session key comes out of the ticket, and that key opens the
+    authenticator.
   </figcaption>
 </figure>

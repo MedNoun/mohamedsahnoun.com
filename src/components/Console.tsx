@@ -7,7 +7,15 @@ import {
   sectionCount,
   type Entry,
 } from './console/dom';
-import { chips, completions, filterChips, match, normalise, type Table } from './console/matcher';
+import {
+  applyCompletion,
+  chips,
+  completionFor,
+  completions,
+  filterChips,
+  match,
+  type Table,
+} from './console/matcher';
 import { site } from '../data/site';
 import './console/console.css';
 
@@ -70,6 +78,7 @@ export default function Console() {
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [status, setStatus] = useState('');
   const [placeholder, setPlaceholder] = useState(AUTO_QUERY);
+  const [caretAtEnd, setCaretAtEnd] = useState(true);
   const [openTable, setOpenTable] = useState<Table | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
@@ -554,14 +563,28 @@ export default function Console() {
     }
 
     if (event.key === 'Tab') {
-      const token = normalise(live).split(' ').pop() ?? '';
-      if (!token) return;
-      const hit = vocabulary.find((word) => word.startsWith(token) && word !== token);
-      if (!hit) return;
+      const completed = applyCompletion(live, vocabulary);
+      if (completed === live) return;
       event.preventDefault();
-      setValue(`${live.slice(0, live.length - token.length)}${hit}`);
+      setValue(completed);
+      setCaretAtEnd(true);
     }
   };
+
+  /** Input, click and key-up all move the caret, and all three gate the ghost. */
+  const trackCaret = (event: { currentTarget: HTMLInputElement }) => {
+    const field = event.currentTarget;
+    setCaretAtEnd(field.selectionStart === field.value.length);
+  };
+
+  /*
+   * The ghost only makes sense at the end of the line: mid-string it would paint
+   * the tail over text the visitor can already see. Long values are skipped too,
+   * because once the input scrolls horizontally the overlay stops lining up and
+   * there is no way to read the input's scroll offset from here.
+   */
+  const ghostTail =
+    (caretAtEnd && value.length <= 56 ? completionFor(value, vocabulary)?.tail : '') ?? '';
 
   if (!mounted) {
     // Server-rendered shell. Real links, so it is never a dead control.
@@ -630,23 +653,41 @@ export default function Console() {
           <label class="visually-hidden" for="console-input">
             Query this portfolio, in SQL or in plain English
           </label>
-          <input
-            id="console-input"
-            class="console-input"
-            ref={inputEl}
-            type="text"
-            value={value}
-            autocomplete="off"
-            autocapitalize="off"
-            spellcheck={false}
-            placeholder={placeholder}
-            onFocus={settlePlaceholder}
-            onInput={(event) => {
-              settlePlaceholder();
-              setValue(event.currentTarget.value);
-            }}
-            onKeyDown={onKeyDown}
-          />
+          {/*
+            The ghost is an overlay, not a second field: same font, same padding,
+            with the typed prefix rendered transparent so the tail lands exactly
+            where the caret is. Hidden from assistive tech, which gets the hint
+            from the keyboard help instead of a per-keystroke announcement.
+          */}
+          <span class="console-field">
+            <input
+              id="console-input"
+              class="console-input"
+              ref={inputEl}
+              type="text"
+              value={value}
+              autocomplete="off"
+              autocapitalize="off"
+              spellcheck={false}
+              placeholder={placeholder}
+              onFocus={settlePlaceholder}
+              onInput={(event) => {
+                settlePlaceholder();
+                setValue(event.currentTarget.value);
+                trackCaret(event);
+              }}
+              onKeyUp={trackCaret}
+              onClick={trackCaret}
+              onKeyDown={onKeyDown}
+            />
+            {ghostTail ? (
+              <span class="console-ghost" aria-hidden="true">
+                <i>{value}</i>
+                {ghostTail}
+                <em>tab</em>
+              </span>
+            ) : null}
+          </span>
           <button type="button" class="console-run" onClick={() => submit(value)}>
             Run
           </button>

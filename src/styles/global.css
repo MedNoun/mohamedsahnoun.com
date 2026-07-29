@@ -202,10 +202,25 @@ svg {
   margin: 0;
 }
 
-/* max-width and height: auto come from the global `img, svg` rule above. */
+/*
+ * One canvas for all five: every diagram uses viewBox="-8 -10 596 H" and lays
+ * its content out from x=0 to x=560, so stacked down the page they share a left
+ * edge with each other and with the prose. Heights differ; the grid does not.
+ */
+.diagram-scroll {
+  overflow-x: auto;
+}
+
+/*
+ * Narrow screens scroll rather than shrink. Squeezing a 596-unit canvas into a
+ * 330px column renders 12-unit labels at about 7px, so instead the canvas holds
+ * its size and the container takes the overflow. Same approach as .lessons-scroll.
+ * The page itself must never scroll sideways.
+ */
 .diagram svg {
   display: block;
   width: 100%;
+  min-width: 37rem;
   font-family: var(--mono);
   /* User units, so text scales with the viewBox rather than fighting it. */
   font-size: 12px;
@@ -288,9 +303,10 @@ svg {
   fill: var(--text);
 }
 
-/* Narrow byte fields: a 2-byte box has no room for a 12-unit label. */
-.diagram .field.is-tight text {
-  font-size: 10px;
+/* A leader from a box too narrow to hold its own label out to where it fits. */
+.diagram .leader line {
+  stroke: var(--muted);
+  stroke-width: 1;
 }
 
 .diagram .offset text {
