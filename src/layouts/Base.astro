@@ -10,7 +10,7 @@ interface Props {
 const { title, description = site.description } = Astro.props;
 const canonical = new URL(Astro.url.pathname, Astro.site).href;
 const ogImage = new URL('/og.png', Astro.site).href;
-const ogImageAlt = `${site.name}, ${site.title}. ${site.availability.join(', ')}.`;
+const ogImageAlt = `${site.name}, ${site.title}.`;
 
 const person = {
   '@context': 'https://schema.org',
