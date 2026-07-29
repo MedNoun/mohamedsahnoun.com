@@ -35,7 +35,7 @@ Never invent a project, a metric, a technology or a date that is not in those fi
 - Stack: BigQuery, Dataform, GoogleSQL, JavaScript, Terraform, GCS, Pub/Sub, Dataflow, Cloud Workflows, Cloud Build, Datadog, Azure DevOps.
 - Anonymisation: "nine source systems spanning commerce, ERP, marketing automation and planning". Never the product names.
 
-**`ovhai-llm`** Data Engineer Intern, OVHai LLM, Paris. Feb 2024 to Jul 2024, five months, on site.
+**`ovhai-llm`** Data Engineer Intern, OVHai LLM, Paris. Feb 2024 to Jul 2024, six months, on site.
 - Hook: rebuilt the platform that prepares training corpora for neural machine translation models serving regulated financial institutions.
 - Hard problem: choosing an architecture on evidence. A documented trade-off analysis of monolith against microservices and event-driven against message-driven, settling on message-driven because the workflow is an ordered pipeline carrying substantial payloads, not fire-and-forget notification.
 - Verified metrics: 4 microservices built, 6 library modules refactored, 6 logging severity levels, thesis defended 25 September 2024 at INSAT.
