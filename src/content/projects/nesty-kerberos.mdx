@@ -1,15 +1,16 @@
 ---
 id: nesty-kerberos
 name: Nesty-kerberos
-hook: The Kerberos three-legged ticket flow implemented properly, nested encryption included.
+hook: The Kerberos three-legged ticket flow implemented properly, then audited and hardened three years later.
 result: >-
-  ~1,433 lines across 2 NestJS applications · 9 of 10 commits mine · 2 realms, 256-bit session keys,
-  120s authenticator skew, 2h to 10h lifetime clamp, MODP group 15
+  ~1,835 lines across 2 NestJS applications · 128 tests, up from none that could run · 14 of 15 commits
+  mine · AES-256-GCM, PBKDF2-HMAC-SHA256 at 600,000 iterations, ±120s skew against the server clock
 lesson: >-
-  A 2023 learning build with real faults: passwords stored raw instead of derived through string2key,
-  unauthenticated AES-256-CBC, a debug leak handing the client plaintext, and committed secrets.
+  Registration is still unauthenticated, so its Diffie-Hellman exchange is open to a machine in the
+  middle, the principal key sits unencrypted in Postgres, and nothing consults a role once a client is
+  authenticated.
 domain: Security
-year: '2023'
+year: '2023, hardened 2026'
 stack:
   - NestJS
   - TypeScript
@@ -17,6 +18,7 @@ stack:
   - PostgreSQL
   - TypeORM
   - Docker Compose
+  - Jest
 repo: https://github.com/MedNoun/Nesty-kerberos
 order: 3
 ---
@@ -25,7 +27,7 @@ import NestedEncryption from '../../components/diagrams/NestedEncryption.astro';
 
 #### The problem
 
-Almost every write-up of Kerberos stops at the diagram: client, Key Distribution Centre, service, three legs, some arrows. The diagram is not the difficult part. **The difficult part is that the protocol proves a client holds a key without that key ever crossing the network, and it does that through encryption nested inside encryption.** I wanted to implement it rather than read about it, so I built it across two independently deployable NestJS services, roughly 1,433 lines of TypeScript: a KDC exposing the Authentication Service and the Ticket Granting Service, and an application service that validates service tickets and manages users, with Redis and PostgreSQL behind them under Docker Compose.
+Almost every write-up of Kerberos stops at the diagram: client, Key Distribution Centre, service, three legs, some arrows. The diagram is not the difficult part. **The difficult part is that the protocol proves a client holds a key without that key ever crossing the network, and it does that through encryption nested inside encryption.** I wanted to implement it rather than read about it, so I built it across two independently deployable NestJS services, roughly 1,835 lines of TypeScript: a KDC exposing the Authentication Service and the Ticket Granting Service, and an application service that validates service tickets and registers principals, with Redis and PostgreSQL behind them under Docker Compose.
 
 #### The constraint that made it hard
 
@@ -33,32 +35,43 @@ Nested encryption is a cross-cutting concern that touches every endpoint, and an
 
 #### What I tried
 
-I put the whole scheme in a NestJS interceptor wrapping every KDC endpoint, so the handlers see decrypted, validated input and return plain objects. Inbound, the interceptor decrypts the ticket-granting ticket with the TGS long-term key, recovers the session key from inside that ticket, and decrypts the authenticator with it. That is the step that carries the protocol's actual guarantee: the client demonstrates possession of a key it never transmitted.
+I put the whole scheme in a NestJS interceptor, so the handlers see decrypted, validated input and return plain objects. Inbound, it decrypts the ticket-granting ticket with the TGS long-term key, recovers the session key from inside that ticket, and decrypts the authenticator with it. That is the step that carries the protocol's actual guarantee: the client demonstrates possession of a key it never transmitted.
 
 <NestedEncryption />
 
-Outbound, it mints a fresh 256-bit session key from a CSPRNG, assembles a ticket carrying the principal, username, source IP, timestamp and negotiated lifetime, and double-encrypts the response. The ticket goes under the target service's key so only that service can open it. The challenge goes under the client's key. Neither party can read the other's half.
+Outbound, it mints a fresh 256-bit session key from a CSPRNG, assembles a ticket carrying the principal, username, source IP, timestamp and negotiated lifetime, and double-encrypts the response. The ticket goes under the target service's key so only that service can open it. The challenge goes under the client's key. Neither party can read the other's half, and the response body carries nothing else.
 
-Registration happens before any of that, and it has the same requirement: no credential in plaintext on the wire. The client and server run an ephemeral Diffie-Hellman exchange over MODP group 15, derive a shared secret that lives in Redis for 120 seconds, and the client encrypts its password under that secret for the server to decrypt server side before persisting the user through TypeORM with a role attached.
+Registration happens before any of that, and it has the same requirement: no credential in plaintext on the wire. The client and server run an ephemeral Diffie-Hellman exchange, allow-listed to MODP groups 15 through 18, derive a shared secret through HKDF, and cache it in Redis for 120 seconds for a single use. The client encrypts its password under that secret; the server decrypts it, derives the long-term key with PBKDF2-HMAC-SHA256 at 600,000 iterations salted with realm plus username, writes that key to the keytab, and never stores the password at all.
 
 #### The decision, and why
 
-Encryption on its own does not imply the protocol's security properties, so I enforce each of them explicitly. The TGS rejects a ticket presented from an IP other than the one it was issued to, rejects a mismatch between the username inside the ticket and the one in the authenticator, rejects expired tickets, and rejects authenticators whose timestamp skew from the ticket exceeds two minutes. The Authentication Service looks up client and service principal keys from a Redis-backed keytab and clamps the negotiated ticket lifetime between per-realm bounds of two to ten hours.
+Encryption on its own does not imply the protocol's security properties, so each one is enforced explicitly and separately. The Authentication Service requires pre-authentication: a timestamp encrypted under the principal's long-term key, so it issues a ticket only to a caller that already holds one, and every failure path returns the same message so the endpoint is not an account oracle. The TGS rejects a ticket presented from an IP other than the one it was issued to, rejects a mismatch between the username inside the ticket and the one in the authenticator, rejects a ticket not issued for the TGS itself, and clamps ticket lifetime between per-realm bounds of two to ten hours. A service ticket can never outlive the ticket-granting ticket that authorised it.
 
-Replay protection is the piece I am happiest with, because the data store does the work. A Redis entry keyed on principal, username and realm has its TTL set to the ticket's remaining lifetime, so a captured authenticator cannot be reused inside exactly the window in which it would still be valid, and the entry expires itself the moment it stops mattering. The application service's ticket manager mirrors the same validation for the final service-ticket leg.
+**Skew is measured against the server's own clock, and the replay cache is keyed on the authenticator, not the user.** Both of those sound obvious and neither was true in the first version. The cache entry is `realm:principal:username:timestamp`, its TTL is the skew window rather than the ticket's remaining lifetime, and it is written with `SET NX` so the check and the write are one atomic operation: a second copy of the same authenticator loses the race, while a fresh one from the same user is unaffected.
 
 Multi-tenancy runs all the way down: every principal, session key, replay entry and lifetime policy is namespaced by realm, and the configuration ships two realms to demonstrate the isolation.
 
+#### Auditing my own code, three years later
+
+This started as a 2023 learning build and it had real faults, so in 2026 I read it back as an attacker would and fixed what I found: 78 files, +3,705 and -881 lines. The findings were worse than I expected, and worth naming.
+
+- **It did not run at all.** Six independent blockers, and none of the protocol work was observable through any of them. Nothing ever wrote the keytab, so the first request died inside the cipher. The response interceptor handed Express a promise, which Express serialises as `{}`, so every KDC response body was empty. Redis TTLs were passed in milliseconds to a store that calls `SETEX` in seconds. No test could ever have run either: neither application's Jest configuration could resolve the `src/...` imports the sources use.
+- **The interceptor returned the plaintext next to the ciphertext.** The decrypted ticket, the decrypted challenge including the session key, and a server-minted authenticator, to any unauthenticated caller. That defeats the encryption entirely.
+- **AES-256-CBC, with the algorithm read off the wire.** Unauthenticated, so ciphertexts were malleable, and the peer chose the mode. It is now AES-256-GCM with a fresh 96-bit IV, the tag verified before the plaintext is parsed, and the algorithm a server-side constant.
+- **The password was the key.** Stored in plaintext in Redis and Postgres, then used verbatim as an AES key, where a non-hex byte silently truncated it to nothing. Hence the PBKDF2 derivation above, and a schema with no password column.
+- **Secrets had been committed since April 2023.** Two `.env` files, plus passwords in the README and the compose file. They are untracked and templated now, purged from all 13 commits of history, and gitleaks runs in a pre-commit hook and again over the full history in CI.
+
+The tests arrived with the fix: 128 of them, across unit suites for the crypto and every protocol check, and end-to-end suites that run the AS, TGS and application legs against live Redis and PostgreSQL. **The test client deliberately reimplements the client-side crypto rather than importing the server's, so a change to the wire format cannot pass by agreeing with itself.** One of those tests caught a defect in the hardening work itself: the AS was returning distinguishable errors for a bad pre-authenticator and an unknown principal, which is the same account oracle I had just set out to remove.
+
 #### The outcome
 
-**The full three-legged flow works end to end across both services: register, authenticate, obtain a ticket-granting ticket, exchange it for a service ticket, present that ticket to an application service that validates it independently.** Underneath sits a crypto service wrapping AES-256-CBC with a random per-message initialisation vector, SHA-256 hashing and secure key generation.
+**The full flow works end to end across both services: register, pre-authenticate, obtain a ticket-granting ticket, exchange it for a service ticket, present that ticket to an application service that validates it independently.** A walk script drives all four legs against both running applications and is the only client in the repository, because the server no longer builds the client's authenticator for it. Replayed authenticators and tampered tickets come back 401.
 
 #### Known limitations
 
-This is a 2023 learning build, written to understand the protocol, and it has real faults. I would rather name them than have someone find them.
+Four remain, and they are in the README rather than left for a reader to find.
 
-- **Passwords are stored raw.** `UserService.create` decrypts the password and writes it into both Redis and Postgres. Real Kerberos derives a long-term key through a `string2key` function and never keeps the password at all. I would derive with Argon2 or PBKDF2, then discard.
-- **AES-256-CBC is unauthenticated**, so ciphertexts are malleable and an attacker can flip bits undetected. AES-256-GCM, or encrypt-then-MAC with HMAC-SHA256, is the fix.
-- **The interceptor leaks plaintext.** It returns `dec_1` and `dec_2`, the decrypted ticket and challenge, alongside the encrypted response. Debug output as written, and it hands the client plaintext it should never see, which defeats the encryption entirely. Delete before this is used for anything.
-- **Secrets are committed**, including `.env` files and a hard-coded service key in `realms.ts`.
-- **The test suite is scaffolded and empty.** For a security protocol that is the sharpest gap of all: the tests are the argument that the implementation is correct.
+- **Registration is unauthenticated**, and its Diffie-Hellman exchange has no server authentication, so it is exposed to a machine in the middle. Real Kerberos provisions principals out of band.
+- **The principal key is stored as-is** in PostgreSQL. A production KDC encrypts its database under a master key.
+- **No authorisation.** The application service authenticates a client and stops. The role on a principal is never consulted.
+- **No cross-realm referrals, no ticket renewal or forwarding, no PKINIT, and no migrations.**

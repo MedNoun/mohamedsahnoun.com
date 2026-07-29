@@ -66,12 +66,14 @@ Never invent a project, a metric, a technology or a date that is not in those fi
 - Team: two engineers, pair-programmed over screen share, commits landed under whoever was driving.
 - What I would do differently: bandwidth throttling written but commented out, `handleLeecher` stubbed so inbound seeding does not complete, no test suite.
 
-**`nesty-kerberos`** order 3. `github.com/MedNoun/Nesty-kerberos`. 2023. Security.
-- Hook: the Kerberos three-legged ticket flow implemented properly, nested encryption included.
+**`nesty-kerberos`** order 3. `github.com/MedNoun/Nesty-kerberos`. Built 2023, hardened 2026. Security.
+- Hook: the Kerberos three-legged ticket flow implemented properly, then audited and hardened three years later.
 - Hard problem: an interceptor that decrypts the ticket-granting ticket under the TGS long-term key, recovers the session key from inside it, and uses that to decrypt the client's authenticator, so the server proves the client holds a key it never transmitted.
-- Verified metrics: ~1,433 lines across two NestJS applications, 9 of 10 commits, 2 realms, 120s authenticator skew, 2h to 10h lifetime clamp, 256-bit session keys, MODP group 15.
-- Stack: NestJS, TypeScript, Redis, PostgreSQL, TypeORM, Docker Compose, AES-256-CBC, SHA-256.
-- What I would do differently: passwords stored raw instead of derived through string2key, AES-256-CBC is unauthenticated, the interceptor returns debug plaintext, secrets committed, tests scaffolded but empty.
+- Second hard problem: auditing my own 2023 build as an attacker would. It did not run (six blockers), returned the plaintext next to the ciphertext, used unauthenticated AES-256-CBC with the algorithm read off the wire, used the password itself as a key, measured skew against the ticket rather than the server clock, and had a replay cache that caught no replays while locking principals out for hours.
+- Verified metrics: PR #164 merged 29 July 2026, 78 files, +3,705 / -881, ~1,835 lines of application source across two NestJS applications, ~1,780 lines of tests, 128 tests passing (38 and 20 kdc, 48 and 22 service) where none could previously run, 14 of 15 commits, PBKDF2-HMAC-SHA256 at 600,000 iterations, 96-bit GCM IV, 2 realms, 120s authenticator skew against the server clock, 2h to 10h lifetime clamp, 256-bit session keys, MODP groups 15 to 18, secrets purged from all 13 commits of history.
+- Stack: NestJS, TypeScript, Redis, PostgreSQL, TypeORM, Docker Compose, Jest, AES-256-GCM, PBKDF2, HKDF, SHA-256, gitleaks.
+- What I would do differently: registration is unauthenticated and its Diffie-Hellman exchange has no server authentication, the principal key is stored as-is in Postgres, no authorisation once a client is authenticated, and no cross-realm referrals, renewal, forwarding, PKINIT or migrations.
+- Full audit write-up: `/home/mednoun/nesty-kerberos-hardening-report.md` (outside the repo, generated from the merged diff).
 
 **`yummy`** order 4. `github.com/MedNoun/yummy`. 2022 to 2023. Desktop and offline-first.
 - Hook: a till that keeps taking orders when the internet drops.
