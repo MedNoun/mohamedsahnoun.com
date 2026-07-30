@@ -20,7 +20,6 @@ Never invent a project, a metric, a technology or a date that is not in those fi
 
 - No em-dashes anywhere. Use commas, colons, parentheses or full stops.
 - No invented metrics. Every number traces to `content-source/`.
-- Never name the fashion client. Use "a US fashion house (via a consultancy)". Do not name the consultancy and do not name their source systems.
 - No "passionate about", "strategic thinker", "results-driven", "leverage", "seamless".
 - British English.
 
@@ -28,7 +27,7 @@ Never invent a project, a metric, a technology or a date that is not in those fi
 
 ### Experience
 
-**`fashion-data-platform`** Data Platform Engineer, a US fashion house (via a consultancy). Jan 2025 to present, remote.
+**`fashion-data-platform`** Data Platform Engineer, Marc Jacobs (via Olivesoft). Jan 2025 to present, remote.
 - Hook: two production GCP repositories that turn nine fragmented source systems into one customer view.
 - Hard problem: expressing graph connectivity in set-based SQL. A deterministic master data management engine implementing Union-Find connected components in pure GoogleSQL via iterative CTEs, blocking candidate pairs on name plus phone and name plus email.
 - Verified metrics: 83 SQLX models, ~6,577 lines of GoogleSQL, 694 of 841 commits (~83%), 540-line JavaScript macro library, 7M+ customer records resolved, 22 models with assertions, 18 with QUALIFY dedup, 106 distinct DAG tags, nine source systems, 124 Terraform files and ~4,997 lines, 11 dataset modules, 25 JSON schemas, 9 batch ingestion flows, 21 IAM bindings, 3 environments.

@@ -45,5 +45,4 @@ src/
 `AGENTS.md` (symlinked as `CLAUDE.md`) carries the full brief, the content inventory, the design tokens and the hard rules. The short version:
 
 - Every number traces to a verified write-up in `content-source/`, which is gitignored because it names the client.
-- The fashion client, the consultancy and their source systems are never named. "A US fashion house (via a consultancy)", "nine source systems spanning commerce, ERP, marketing automation and planning".
 - No em-dashes. British English.
