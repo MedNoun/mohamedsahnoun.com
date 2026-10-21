@@ -1,0 +1,40 @@
+---
+import Base from '../../layouts/Base.astro';
+import { site } from '../../data/site';
+---
+
+<Base title="PitchCue support" description="Help for PitchCue, the Mac teleprompter for video calls: getting started, cues, keyboard shortcuts and screen sharing.">
+  <main class="wrap page" id="content">
+    <h1>PitchCue support</h1>
+    <p>PitchCue is a teleprompter for video calls on the Mac. Your script sits just under the camera, so reading looks like eye contact.</p>
+
+    <h2>Getting started</h2>
+    <p>Open PitchCue, choose <em>Try the Sample</em>, then click <em>Start Prompter</em> (⌘↩). Press → to move on, ← to go back, Space to pause for a question, S to jump to a part and ? for every shortcut. The full guide is in the app, under <em>Help &gt; PitchCue Help</em>.</p>
+
+    <h2>Writing cues</h2>
+    <ul>
+      <li><code># Part</code> starts a part of the script.</li>
+      <li><code>!!hook!!</code> marks a phrase to say slowly, followed by a pause.</li>
+      <li><code>==key term==</code> highlights a term to say clearly.</li>
+      <li><code>((note))</code> is a reminder only you see.</li>
+      <li><code>?? question</code> is a question for your audience: ask it, then wait.</li>
+      <li><code>//</code> is a deliberate pause.</li>
+    </ul>
+
+    <h2>Common questions</h2>
+    <p><strong>The prompter shows in my screen share.</strong> PitchCue uses the macOS window privacy setting (<em>Settings &gt; Window &gt; Hide from screen sharing</em>). Most video-call apps respect it; some capture tools may not. Start a screen share and check your call app’s preview before an important talk.</p>
+    <p><strong>The arrow keys do nothing.</strong> Another window has the keyboard, and the prompter’s bar turns orange. Click the prompter once: the block does not change.</p>
+    <p><strong>The prompter is not under my camera.</strong> Press 0 in the prompter, or choose <em>Prompter &gt; Move Prompter Under the Camera</em> (⌥⌘0).</p>
+    <p><strong>My file shows strange characters.</strong> PitchCue reads UTF-8, UTF-16, Windows and Latin-1 text files and saves them back in the same encoding. If a file still looks wrong, send it to me.</p>
+
+    <h2>Contact</h2>
+    <p>Write to <a href={`mailto:${site.email}?subject=PitchCue%20support`}>{site.email}</a>.</p>
+    <p class="muted"><a href="/pitchcue/privacy">Privacy policy</a></p>
+  </main>
+</Base>
+
+<style>
+  .page { padding: calc(var(--space) * 12) 0 calc(var(--space) * 16); max-width: 46rem; }
+  .muted { color: var(--muted); font-size: var(--t--1); }
+  li { margin-bottom: calc(var(--space) * 2); }
+</style>
