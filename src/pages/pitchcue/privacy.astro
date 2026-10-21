@@ -1,0 +1,30 @@
+---
+import Base from '../../layouts/Base.astro';
+import { site } from '../../data/site';
+---
+
+<Base title="PitchCue privacy policy" description="PitchCue collects no personal data: no account, no network, no tracking.">
+  <main class="wrap page" id="content">
+    <p class="crumb"><a href="/pitchcue/support">PitchCue</a></p>
+    <h1>PitchCue privacy policy</h1>
+    <p class="muted">Last updated 21 October 2026</p>
+
+    <p>PitchCue is a teleprompter for video calls on the Mac. It does not collect, store, transmit or share any personal data.</p>
+    <ul>
+      <li><strong>No account, no network.</strong> The app never connects to the internet. It has no analytics, no advertising, no crash reporting and no third-party code.</li>
+      <li><strong>Your scripts stay yours.</strong> Scripts are ordinary text or Markdown files that you create, open and save on your Mac. PitchCue reads only the files you choose to open.</li>
+      <li><strong>Settings stay on your Mac.</strong> Preferences such as text size or pace targets are saved locally by macOS and never leave your device.</li>
+      <li><strong>No camera, microphone or screen recording.</strong> PitchCue places its window near your camera but never uses the camera, the microphone or screen recording.</li>
+    </ul>
+    <p>Questions: <a href={`mailto:${site.email}?subject=PitchCue`}>{site.email}</a>.</p>
+
+    <h2 lang="fr">Politique de confidentialité</h2>
+    <p lang="fr">PitchCue ne collecte, ne conserve, ne transmet et ne partage aucune donnée personnelle. L’app ne se connecte jamais à Internet et n’intègre ni statistiques, ni publicité, ni code tiers. Vos scripts sont de simples fichiers sur votre Mac, que vous seul ouvrez. Les réglages restent sur votre Mac. PitchCue n’utilise ni la caméra, ni le micro, ni l’enregistrement de l’écran.</p>
+  </main>
+</Base>
+
+<style>
+  .page { padding: calc(var(--space) * 12) 0 calc(var(--space) * 16); max-width: 46rem; }
+  .crumb, .muted { color: var(--muted); font-size: var(--t--1); }
+  li { margin-bottom: calc(var(--space) * 2); }
+</style>
